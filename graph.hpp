@@ -1,7 +1,8 @@
 #ifndef GRAPH
 #define GRAPH
 #include <vector>
-#include <common.h>
+#include "common.h"
+#include <iostream>
 
 
 class Point{
@@ -12,13 +13,6 @@ public:
         return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
     }
 };
-
-bool operator<(const Node& a, const Node& b) {
-    return a.heuristic_cost < b.heuristic_cost;
-}
-bool operator==(const Node& a, const Node& b) {
-    return a.pos.x == b.pos.x && a.pos.y == b.pos.y;
-}
 
 class Node{
 public:
@@ -39,6 +33,13 @@ public:
     }
 };
 
+bool operator<(const Node& a, const Node& b) {
+    return a.heuristic_cost < b.heuristic_cost;
+}
+bool operator==(const Node& a, const Node& b) {
+    return a.pos.x == b.pos.x && a.pos.y == b.pos.y;
+}
+
 class Obstacle{
 public:
     Point p1; // bottom left corner (low x, low y)
@@ -48,48 +49,52 @@ public:
     }
 };
 
-bool collidesWithObstacleList(Point p, std::vector<Obstacle> obstacleList){
-    for(Obstacle o : obstacleList){
-        if(o.contains(p)) return true;
-    }
-    return false;
-}
-
 class AStarMap{
 public:
-    AStarMap(int s, std::vector<Obstacle> obstacleList){
-        size = s;
+    Node start;
+    Node goal;
+    int size;
+    std::vector<Obstacle> obstacles;
+    std::vector<std::vector<char>> grid;
+
+    AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s), start(Node(-1, -1)), goal(Node(-1, -1)){
+        std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
                 Point p = Point(i, j);
-                grid[i][j] = '.';
+                initGrid[i][j] = '.';
                 for(Obstacle o : obstacleList){
                     if(o.contains(p)){
-                        grid[i][j] = 'X';
+                        initGrid[i][j] = 'X';
                     }
                 }
             }
         }
         std::uniform_int_distribution<> distrib(0, s-1);
         Point startPoint = Point(distrib(gen), distrib(gen));
-        while(collidesWithObstacleList(startPoint, obstacleList)){
+        while(initGrid[startPoint.x][startPoint.y] == 'X'){
             startPoint = Point(distrib(gen), distrib(gen));
         }
-        grid[startPoint.x][startPoint.y] = 'S';
+        initGrid[startPoint.x][startPoint.y] = 'S';
         start = Node(startPoint);
 
         Point endPoint = Point(distrib(gen), distrib(gen));
-        while(collidesWithObstacleList(endPoint, obstacleList)){
+        while(initGrid[endPoint.x][endPoint.y] == 'X'){
             endPoint = Point(distrib(gen), distrib(gen));
         }
-        grid[endPoint.x][endPoint.y] = 'S';
+        initGrid[endPoint.x][endPoint.y] = 'G';
         goal = Node(endPoint);
+        grid = initGrid;
     }
-    Node start;
-    Node goal;
-    int size;
-    std::vector<Obstacle> obstacles;
-    std::vector<std::vector<char>> grid;
+    
+    void render(){
+        for(int i = 0; i < size; i++){
+            for(int j = 0; j < size; j++){
+                std::cout << grid[i][j];
+            }
+            std::cout << std::endl;
+        }
+    }
 };
 
 #endif
