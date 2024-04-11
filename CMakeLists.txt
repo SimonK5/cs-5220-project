@@ -13,7 +13,7 @@ if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
             "module swap ${Prg-${CMAKE_C_COMPILER_ID}} PrgEnv-gnu")
 endif ()
 
-add_executable(astar main.cpp graph.hpp graph.cpp common.h)
+add_executable(serial main.cpp graph.hpp graph.cpp common.h serial.hpp)
 
 # target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)
 
