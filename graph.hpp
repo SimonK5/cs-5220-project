@@ -159,6 +159,24 @@ public:
             std::cout << std::endl;
         }
     }
+
+    std::size_t get_proc(Node n, int N){
+        NodeHash nh;
+        return nh(&n) % N;
+    }
+
+    void print_assignments(int N){
+        for(int i = 0; i < size; i++){
+            for(int j = 0; j < size; j++){
+                NodeHash nh;
+                Node n = Node(i, j);
+                std::size_t test = nh(&n);
+
+                std::cout << test % N;
+            }
+            std::cout << std::endl;
+        }
+    }
 };
 
 #endif
