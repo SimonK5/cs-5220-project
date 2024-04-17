@@ -6,10 +6,10 @@
 #include <queue>
 #include <unordered_set>
 #include <iostream>
+#include "stdio.h"
 
-void serial_astar(int grid_size){
-    std::vector<Obstacle> obstacleList = {{{1, 1}, {5, 5}}, {{7, 7}, {9, 9}}};
-    AStarMap map = AStarMap(grid_size, obstacleList);
+int serial_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPoint, Point endPoint){
+    AStarMap map = AStarMap(grid_size, obstacleList,startPoint, endPoint);
     
     std::priority_queue<Node*, std::vector<Node*>, NodeCompare> open_queue;
     std::unordered_set<Node*, NodeHash, NodeEqual> closed_set;
@@ -69,6 +69,7 @@ void serial_astar(int grid_size){
     }
 
     map.render();
+    return end_node->cost_to_come;
 }
 
 #endif

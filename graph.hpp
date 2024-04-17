@@ -127,7 +127,25 @@ public:
         goal = new Node(endPoint);
         grid = initGrid;
     }
-
+     AStarMap(int s, std::vector<Obstacle> obstacleList, Point startPoint, Point endPoint) : size(s), start(nullptr), goal(nullptr){
+        std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+        for(int i = 0; i < size; i++){
+            for(int j = 0; j < size; j++){
+                Point p = Point(i, j);
+                initGrid[i][j] = '.';
+                for(Obstacle o : obstacleList){
+                    if(o.contains(p)){
+                        initGrid[i][j] = 'X';
+                    }
+                }
+            }
+        } 
+        initGrid[startPoint.x][startPoint.y] = 'S';
+        start = new Node(startPoint);
+        initGrid[endPoint.x][endPoint.y] = 'G';
+        goal = new Node(endPoint);
+        grid = initGrid;
+    }
     bool in_bounds(Node n){
         return n.pos.x >= 0 && n.pos.y >= 0 && n.pos.x < size && n.pos.y < size;
     }
@@ -155,24 +173,6 @@ public:
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
                 std::cout << grid[i][j];
-            }
-            std::cout << std::endl;
-        }
-    }
-
-    std::size_t get_proc(Node n, int N){
-        NodeHash nh;
-        return nh(&n) % N;
-    }
-
-    void print_assignments(int N){
-        for(int i = 0; i < size; i++){
-            for(int j = 0; j < size; j++){
-                NodeHash nh;
-                Node n = Node(i, j);
-                std::size_t test = nh(&n);
-
-                std::cout << test % N;
             }
             std::cout << std::endl;
         }
