@@ -27,12 +27,11 @@ public:
 */
 class Node{
 public:
-    Node(int x, int y) : pos(Point(x, y)), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(Point p) : pos(p), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(const Node& other) : pos(other.pos), parent(other.parent), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
-    Node() : pos(0, 0), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(int x, int y) : pos(Point(x, y)), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(Point p) : pos(p), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(const Node& other) : pos(other.pos), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
+    Node() : pos(0, 0), cost_to_come(0.0), heuristic_cost(0.0) {}
     Point pos;
-    Node* parent;
     float cost_to_come;
     float heuristic_cost;
 
