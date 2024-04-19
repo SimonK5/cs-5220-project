@@ -29,7 +29,8 @@ class Node{
 public:
     Node(int x, int y) : pos(Point(x, y)), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
     Node(Point p) : pos(p), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(const Node& other) : pos(other.pos), parent(other.parent) {}
+    Node(const Node& other) : pos(other.pos), parent(other.parent), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
+    Node() : pos(0, 0), parent(nullptr), cost_to_come(0.0), heuristic_cost(0.0) {}
     Point pos;
     Node* parent;
     float cost_to_come;
@@ -51,23 +52,23 @@ public:
 
 // Necessary for using an unordered_set of Nodes
 struct NodeHash {
-    std::size_t operator()(const Node* n) const {
-        std::size_t hashX = std::hash<int>{}(n->pos.x);
-        std::size_t hashY = std::hash<int>{}(n->pos.y);
+    std::size_t operator()(const Node &n) const {
+        std::size_t hashX = std::hash<int>{}(n.pos.x);
+        std::size_t hashY = std::hash<int>{}(n.pos.y);
         return hashX ^ (hashY + 0x9e3779b9 + (hashX << 6) + (hashX >> 2));
     }
 };
 
 struct NodeEqual {
-    bool operator()(const Node* a, const Node* b) const {
-        return a->pos.x == b->pos.x && a->pos.y == b->pos.y;
+    bool operator()(const Node &a, const Node &b) const {
+        return a.pos.x == b.pos.x && a.pos.y == b.pos.y;
     }
 };
 
 // Necessary for using a priority_queue of Nodes
 struct NodeCompare {
-    bool operator()(const Node* n1, const Node* n2) const {
-        return n1->heuristic_cost > n2->heuristic_cost;
+    bool operator()(const Node &n1, const Node &n2) const {
+        return n1.heuristic_cost > n2.heuristic_cost;
     }
 };
 
@@ -146,6 +147,10 @@ public:
         goal = new Node(endPoint);
         grid = initGrid;
     }
+    ~AStarMap(){
+        delete start;
+        delete goal;
+    }
     bool in_bounds(Node n){
         return n.pos.x >= 0 && n.pos.y >= 0 && n.pos.x < size && n.pos.y < size;
     }
@@ -178,5 +183,47 @@ public:
         }
     }
 };
+
+// /**
+//  * A* map using pairs instead of objects as nodes.
+// */
+// class AStarMapParallel{
+//     std::pair<int, int> start;
+//     std::pair<int, int> end;
+//     int size;
+//     std::vector<Obstacle> obstacles;
+//     std::vector<std::vector<char>> grid;
+
+//     AStarMap(int s, std::vector<Obstacle> obstacleList)
+//         : size(s), start(startPoint), end(endPoint), obstacles(obsList) {
+//             std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+//         for(int i = 0; i < size; i++){
+//             for(int j = 0; j < size; j++){
+//                 Point p = Point(i, j);
+//                 initGrid[i][j] = '.';
+//                 for(Obstacle o : obstacleList){
+//                     if(o.contains(p)){
+//                         initGrid[i][j] = 'X';
+//                     }
+//                 }
+//             }
+//         }
+//         std::uniform_int_distribution<> distrib(0, s-1);
+//         Point startPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[startPoint.x][startPoint.y] == 'X'){
+//             startPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[startPoint.x][startPoint.y] = 'S';
+//         start = new Node(startPoint);
+
+//         Point endPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[endPoint.x][endPoint.y] == 'X' || endPoint.x == startPoint.x && endPoint.y == startPoint.y){
+//             endPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[endPoint.x][endPoint.y] = 'G';
+//         goal = new Node(endPoint);
+//         grid = initGrid;
+//     }
+// };
 
 #endif

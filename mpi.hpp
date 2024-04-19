@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include "graph.hpp"
 
-Node *end;
 std::priority_queue<Node*, std::vector<Node*>, NodeCompare> open_queue;
 std::unordered_set<Node*, NodeHash, NodeEqual> closed_set;
 
@@ -24,17 +23,17 @@ void init(AStarMap map, int rank, int num_procs){
     }
 }
 
-void send_node(Node *n, int other){
+void send_node(Node n, int other){
     int buffer[4];
-    buffer[0] = n->pos.x;
-    buffer[1] = n->pos.y;
-    if(n->parent == nullptr){
+    buffer[0] = n.pos.x;
+    buffer[1] = n.pos.y;
+    if(n.parent == nullptr){
         buffer[2] = -1;
         buffer[3] = -1;
     }
     else{
-        buffer[2] = n->parent->pos.x;
-        buffer[3] = n->parent->pos.y;
+        buffer[2] = n.parent->pos.x;
+        buffer[3] = n.parent->pos.y;
     }
     MPI_Request request;
     MPI_Isend(buffer, 4, MPI_INTEGER, other, 0, MPI_COMM_WORLD, &request);

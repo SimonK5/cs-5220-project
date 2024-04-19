@@ -40,5 +40,9 @@ int main(){
         return 1; 
     } 
     printf("dist %d", result); 
+
+
+    // int result = serial_astar(10, obstacleList);
+
     return 0;
 }
