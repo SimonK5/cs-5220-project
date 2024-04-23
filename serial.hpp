@@ -14,9 +14,9 @@ int serial_astar(AStarMap &map){
     std::unordered_set<Node, NodeHash, NodeEqual> closed_set;
     std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
 
-    open_queue.push(*map.start);
-    std::cout << map.start->x << " " << map.start->y << std::endl;
-    std::cout << map.goal->x << " " << map.goal->y << std::endl;
+    open_queue.push(Node(map.startX, map.startY));
+    std::cout << map.startX << " " << map.startY << std::endl;
+    std::cout << map.endX << " " << map.endY << std::endl;
     bool path_found = false;
     Node* end_node;
     while(open_queue.size() > 0){
@@ -29,7 +29,7 @@ int serial_astar(AStarMap &map){
         closed_set.emplace(cur);
         map.close_node(cur.x, cur.y);
 
-        if(cur == *(map.goal)){
+        if(cur == Node(map.endX, map.endY)){
             path_found = true;
             end_node = &cur;
             break;
@@ -42,7 +42,7 @@ int serial_astar(AStarMap &map){
                 continue;
             }
             n.cost_to_come = cur.cost_to_come + 1;
-            n.heuristic_cost = n.cost_to_come + n.heuristic(*(map.goal));
+            n.heuristic_cost = n.cost_to_come + n.heuristic(Node(map.endX, map.endY));
             Node new_parent = Node(cur.x, cur.y);
             new_parent.cost_to_come = cur.cost_to_come;
             new_parent.heuristic_cost = cur.heuristic_cost;
