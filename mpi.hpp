@@ -5,36 +5,49 @@
 #include <vector>
 #include <queue>
 #include <unordered_set>
+#include <unordered_map>
 #include "graph.hpp"
 
-std::priority_queue<Node*, std::vector<Node*>, NodeCompare> open_queue;
-std::unordered_set<Node*, NodeHash, NodeEqual> closed_set;
+std::priority_queue<Node, std::vector<Node>, NodeCompare> open_queue;
+std::unordered_set<Node, NodeHash, NodeEqual> closed_set;
+std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
+MPI_Datatype MPI_Vertex;
 
 int my_rank;
 int total_num_procs;
 
 void init(AStarMap map, int rank, int num_procs){
+    int blocklengths[6] = {1, 1, 1, 1, 1, 1};
+    MPI_Datatype types[6] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT,
+                             MPI_FLOAT,   MPI_FLOAT};
+    MPI_Aint offsets[6];
+    offsets[0] = offsetof(Node, x);
+    offsets[1] = offsetof(Node, y);
+    offsets[2] = offsetof(Node, parentX);
+    offsets[3] = offsetof(Node, parentY);
+    offsets[4] = offsetof(Node, cost_to_come);
+    offsets[5] = offsetof(Node, heuristic_cost);
+    MPI_Type_create_struct(6, blocklengths, offsets, types, &MPI_Vertex);
+    MPI_Type_commit(&MPI_Vertex);
+
+
     my_rank = rank;
     total_num_procs = num_procs;
 
     int init_processor = map.get_proc(*map.start, num_procs);
     if(rank == init_processor){
-        open_queue.push(map.start);
+        open_queue.push(*map.start);
     }
 }
 
 void send_node(Node n, int other){
     int buffer[4];
-    buffer[0] = n.pos.x;
-    buffer[1] = n.pos.y;
-    if(n.parent == nullptr){
-        buffer[2] = -1;
-        buffer[3] = -1;
-    }
-    else{
-        buffer[2] = n.parent->pos.x;
-        buffer[3] = n.parent->pos.y;
-    }
+    buffer[0] = n.x;
+    buffer[1] = n.y;
+    buffer[2] = n.parentX;
+    buffer[3] = n.parentY;
+    buffer[4] = n.heuristic_cost;
+    buffer[5] = n.cost_to_come;
     MPI_Request request;
     MPI_Isend(buffer, 4, MPI_INTEGER, other, 0, MPI_COMM_WORLD, &request);
 }
