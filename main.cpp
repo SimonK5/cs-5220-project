@@ -7,8 +7,8 @@
 #include "stdio.h"
 #include <iostream>
 
-int main(){
-    std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
+int main(int argc, char** argv){
+    mpi_astar(argc, argv);
     // AStarMap map = AStarMap(10, obstacleList);
     
     //process input

@@ -10,14 +10,15 @@
 */
 class Node{
 public:
-    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(const Node& other) : x(other.x), y(other.y), parentX(other.parentX), parentY(other.parentY), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
-    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
     int x, y;
     int parentX, parentY; // for MPI sending purposes. Actual node objects will be stored in a separate data structure
     float cost_to_come;
     float heuristic_cost;
+    
+    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(const Node& other) : x(other.x), y(other.y), parentX(other.parentX), parentY(other.parentY), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
+    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
 
     std::vector<std::vector<int>> get_neighbor_directions(){
         std::vector<std::vector<int>> dirn = {{1, 0}, {0, 1}, {0, -1}, {-1, 0}};
@@ -89,13 +90,16 @@ public:
 */
 class AStarMap{
 public:
-    Node *start;
-    Node *goal;
+    int startX;
+    int startY;
+    int endX;
+    int endY;
+
     int size;
     std::vector<Obstacle> obstacles;
     std::vector<std::vector<char>> grid;
 
-    AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s), start(nullptr), goal(nullptr){
+    AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s), startX(0), startY(0), endX(0), endY(0){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
@@ -108,26 +112,24 @@ public:
             }
         }
         std::uniform_int_distribution<> distrib(0, s-1);
-        int startX = distrib(gen);
-        int startY = distrib(gen);
+        startX = distrib(gen);
+        startY = distrib(gen);
         while(initGrid[startX][startY] == 'X'){
             startX = distrib(gen);
             startY = distrib(gen);
         }
         initGrid[startX][startY] = 'S';
-        start = new Node(startX, startY);
 
-        int endX = distrib(gen);
-        int endY = distrib(gen);
+        endX = distrib(gen);
+        endY = distrib(gen);
         while(initGrid[endX][endY] == 'X' || initGrid[endX][endY] == 'S'){
             endX = distrib(gen);
             endY = distrib(gen);
         }
         initGrid[endX][endY] = 'G';
-        goal = new Node(endX, endY);
         grid = initGrid;
     }
-     AStarMap(int s, std::vector<Obstacle> obstacleList, int startX, int startY, int endX, int endY) : size(s), start(nullptr), goal(nullptr){
+     AStarMap(int s, std::vector<Obstacle> obstacleList, int sX, int sY, int eX, int eY) : size(s), startX(sX), startY(sY), endX(eX), endY(eY){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
@@ -140,15 +142,13 @@ public:
             }
         } 
         initGrid[startX][startY] = 'S';
-        start = new Node(startX, startY);
         initGrid[endX][endY] = 'G';
-        goal = new Node(endX, endY);
         grid = initGrid;
     }
-    ~AStarMap(){
-        delete start;
-        delete goal;
-    }
+    // ~AStarMap(){
+    //     delete start;
+    //     delete goal;
+    // }
     bool in_bounds(Node n){
         return n.x >= 0 && n.y >= 0 && n.x < size && n.y < size;
     }
@@ -189,11 +189,17 @@ public:
     void print_assignments(int N){
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){
-                NodeHash nh;
-                Node n = Node(i, j);
-                std::size_t test = nh(n);
+                if(grid[i][j] == 'X'){
+                    std::cout << 'X';
+                }
+                else{
+                    NodeHash nh;
+                    Node n = Node(i, j);
+                    std::size_t test = nh(n);
 
-                std::cout << test % N;
+                    std::cout << test % N;
+                }
+                
             }
             std::cout << std::endl;
         }
