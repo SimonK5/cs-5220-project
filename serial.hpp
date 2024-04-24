@@ -50,6 +50,8 @@ int serial_astar(AStarMap &map){
             open_queue.push(n);
             map.open_node(n.x, n.y);
         }
+
+        map.render();
     }
 
     if(path_found){

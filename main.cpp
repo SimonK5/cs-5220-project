@@ -1,6 +1,6 @@
 #include "common.h"
 #include "graph.hpp"
-// #include "serial.hpp"
+#include "serial.hpp"
 #include "mpi.hpp"
 #include <sstream>
 #include <string>
@@ -9,7 +9,9 @@
 
 int main(int argc, char** argv){
     mpi_astar(argc, argv);
-    // AStarMap map = AStarMap(10, obstacleList);
+    // std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
+    // AStarMap map = AStarMap(10, obstacleList, 9, 9, 8, 2);
+    // int result = serial_astar(map);
     
     //process input
     //assume that all input files are of the form F:= H\n(C\n)*
@@ -47,7 +49,6 @@ int main(int argc, char** argv){
     // printf("dist %d", result); 
 
 
-    // int result = serial_astar(map);
 
     return 0;
 }

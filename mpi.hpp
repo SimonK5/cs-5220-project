@@ -18,6 +18,7 @@ MPI_Datatype MPI_Vertex;
 
 int my_rank;
 int total_num_procs;
+bool found = false;
 
 void init(AStarMap map, int rank, int num_procs){
     int blocklengths[6] = {1, 1, 1, 1, 1, 1};
@@ -103,38 +104,46 @@ std::vector<Node> receive_nodes(int rank, int other){
     return buffer;
 }
 
-void step(AStarMap map, int rank, int num_procs){
+void step(AStarMap &map, int rank, int num_procs){
     to_send.clear();
 
-    // TODO: check if new states have been received in the message queue
-    for(int i = 0; i < num_procs; i++){
-        if(i == rank) continue;
 
+    // TODO: check if new states have been received in the message queue
+    bool receivedMessage = false;
+    for(int i = 0; i < num_procs; i++){
         std::vector<Node> nodes = receive_nodes(rank, i);
+        if(nodes.size() > 0) receivedMessage = true;
         for(Node n : nodes){
             if(closed_set.find(n) == closed_set.end()){
                     costs_to_come[n] = n.cost_to_come;
-                    printf("%d pushing %d, %d\n", rank, n.x, n.y);
+                    printf("%d pushing %d, %d, %f, %f\n", rank, n.x, n.y, n.cost_to_come, n.heuristic_cost);
                     open_queue.push(n);
             }
         }
     }
 
     // TODO: If message queue is empty, select highest priority state from open set and expand it
-    if(open_queue.size() > 0){
+    if(open_queue.size() > 0 && !receivedMessage){
         Node n = open_queue.top();
+        printf("n: %d, %d, %f, %f\n", n.x, n.y, n.cost_to_come, n.heuristic_cost);
         open_queue.pop();
         closed_set.emplace(Node(n));
+        map.close_node(n.x, n.y);
+        if(n.x == map.endX && n.y == map.endY){
+            found = true;
+            return;
+        }
 
         for(auto d : n.get_neighbor_directions()){
             Node neighbor(n.x + d[0], n.y + d[1], n.x, n.y);
-            if(closed_set.find(neighbor) != closed_set.end()){
+            if(!map.is_valid_node(neighbor) || closed_set.find(neighbor) != closed_set.end()){
                     continue;
             }
             if(costs_to_come.find(neighbor) != costs_to_come.end() 
                 && n.cost_to_come + 1 >= costs_to_come[neighbor]){
                     continue;
             }
+            map.open_node(neighbor.x, neighbor.y);
             neighbor.cost_to_come = n.cost_to_come + 1;
             neighbor.heuristic_cost = neighbor.cost_to_come + neighbor.heuristic(Node(map.endX, map.endY));
 
@@ -155,8 +164,6 @@ void step(AStarMap map, int rank, int num_procs){
 
         send_nodes();
     }
-    
-    
 
     // TODO: Convergence check. Add barrier if size of openSet is 0. If no procs have new messages, terminate
 }
@@ -169,7 +176,7 @@ void mpi_astar(int argc, char** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
-    AStarMap map = AStarMap(10, obstacleList);
+    AStarMap map = AStarMap(10, obstacleList, 9, 9, 8, 2);
     int params[4];
     if(rank == 0){
         // map.render()
@@ -188,12 +195,22 @@ void mpi_astar(int argc, char** argv){
     init(map, rank, num_procs);
     std::cout << "done initializing" << std::endl;
     
-    int nsteps = 4;
+    int nsteps = 30;
     for(int s = 0; s < nsteps; ++s){
         MPI_Barrier(MPI_COMM_WORLD);
 
         printf("\n%d step %d\n", rank, s);
         step(map, rank, num_procs);
+    }
+
+    if(found){
+        Node cur(map.endX, map.endY);
+        while (node_to_parent.find(cur) != node_to_parent.end()) {
+            Node parent = node_to_parent[cur];
+            map.add_to_path(cur.x, cur.y);
+            cur = parent;
+        }
+        map.render();
     }
 
     // if(rank == 0){
