@@ -6,6 +6,7 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
+#include <limits>
 #include "graph.hpp"
 
 std::priority_queue<Node, std::vector<Node>, NodeCompare> open_queue;
@@ -21,6 +22,8 @@ int total_num_procs;
 bool terminate = false;
 bool pathFound = false;
 std::vector<Node> path;
+// The optimal path found by any processor so far.
+float minLengthPath = -1;
 
 void init(AStarMap map, int rank, int num_procs){
     int blocklengths[6] = {1, 1, 1, 1, 1, 1};
@@ -124,9 +127,19 @@ void step(AStarMap &map, int rank, int num_procs){
 
     // TODO: check if new states have been received in the message queue
     bool receivedMessages = receiveMessages(rank, num_procs);
+    int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
+    float pathBuffer;
+    if(rank == end_proc){
+        pathBuffer = minLengthPath;
+    }
+    MPI_Request pathRequest;
+    MPI_Ibcast(&pathBuffer, 1, MPI_FLOAT, end_proc, MPI_COMM_WORLD, &pathRequest);
+    if(rank != end_proc && (pathBuffer < minLengthPath || minLengthPath == -1)){
+        minLengthPath = pathBuffer;
+    }
+
 
     if(open_queue.size() == 0){
-        // std::cout << rank << " reached barrier" << std::endl;
         MPI_Barrier(MPI_COMM_WORLD);
         receivedMessages = receiveMessages(rank, num_procs);
         // std::cout << rank << " received: " << receivedMessages << std::endl;
@@ -149,9 +162,16 @@ void step(AStarMap &map, int rank, int num_procs){
         closed_set.emplace(Node(n));
         map.close_node(n.x, n.y);
         node_to_parent[n] = Node(n.parentX, n.parentY);
+
         if(n == Node(map.endX, map.endY)){
             printf("found end!\n");
+
+            if(n.cost_to_come < minLengthPath || minLengthPath < 0){
+                minLengthPath = n.cost_to_come;
+            }
         }
+
+        if(n.heuristic_cost > minLengthPath && minLengthPath != -1) return;
 
         for(auto d : n.get_neighbor_directions()){
             Node neighbor(n.x + d[0], n.y + d[1], n.x, n.y);
@@ -232,11 +252,13 @@ void mpi_astar(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    int map_size = 20;
+
     std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
-    AStarMap map = AStarMap(10, obstacleList);
+    AStarMap map = AStarMap(map_size, obstacleList);
     int params[4];
     if(rank == 0){
-        // map.render()
+        map.render();
         // map.print_assignments(num_procs);
         params[0] = map.startX;
         params[1] = map.startY;
@@ -246,25 +268,33 @@ void mpi_astar(int argc, char** argv){
 
     MPI_Bcast(params, 4, MPI_INT, 0, MPI_COMM_WORLD);
     if(rank != 0){
-        map = AStarMap(10, obstacleList, params[0], params[1], params[2], params[3]);
+        map = AStarMap(map_size, obstacleList, params[0], params[1], params[2], params[3]);
     }
 
     init(map, rank, num_procs);
-    std::cout << "done initializing" << std::endl;
     
-    int nsteps = 30;
+    int nsteps = 200;
     while(!terminate){
         // printf("\n%d step %d\n", rank, s);
         step(map, rank, num_procs);
     }
+    // for(int i = 0; i < nsteps; i++){
+    //     // std::cout << rank << " i: " << i << std::endl;
+    //     step(map, rank, num_procs);
+    // }
 
     // get rank of final processor
     int final_rank = map.get_proc(Node(map.endX, map.endY), num_procs);
 
     if(rank == final_rank){
         std::cout << "final rank is " << final_rank << std::endl;
-        map.print_assignments(num_procs);
+        // map.print_assignments(num_procs);
         path.push_back(Node(map.endX, map.endY));
+        if(node_to_parent.find(Node(map.endX, map.endY)) == node_to_parent.end()){
+            std::cout << "final node has no parent" << std::endl;
+        }
+        std::cout << "looking for path" << std::endl;
+        map.render();
     }
     while(!pathFound){
         backtrack(map, rank, num_procs);
@@ -275,7 +305,6 @@ void mpi_astar(int argc, char** argv){
             map.add_to_path(n.x, n.y);
         }
         map.render();
-
     }
 }
 
