@@ -39,10 +39,10 @@ int hpcxx_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPo
         Node* cur = local_queue.top();
 
         local_queue.pop();
-        if(closed_set.find(cur) != closed_set.end()){
+        if(upcxx::rget(closed_set).find(cur) != upcxx::rget(closed_set).end()){
             continue;
         }
-        closed_set.emplace(cur);
+        upcxx::rput(closed_set, cur);
         map.close_node(cur->pos.x, cur->pos.y);
 
         if(*cur == *(map.goal)){
