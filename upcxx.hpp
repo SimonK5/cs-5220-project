@@ -78,7 +78,7 @@ int hpcxx_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPo
     }
     closed_set.clear();
 
-    while (!open_queue.empty()) {
+    while (!local_queue.empty()) {
         Node *n = local_queue.top();
         local_queue.pop();
         delete n;
