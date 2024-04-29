@@ -48,7 +48,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
 	upcxx::rput(set, closed_set).wait(); 
         map.close_node(cur->x, cur->y);
 
-        if(*cur == *(map.goal)){
+        if(*cur ==Node(map.endX, map.endY)){
 		    upcxx::rput(true,path_found).wait();
             end_node = cur;
             break;
@@ -65,7 +65,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
             Node new_parent = Node(cur->x, cur->y);
             new_parent.cost_to_come = cur->cost_to_come;
             new_parent.heuristic_cost = cur->heuristic_cost;
-            node_to_parent[n] = new_parent;
+            node_to_parent[*n] = new_parent;
 	        upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n, 0,(*local_queue).size()).wait(); 
 	        map.open_node(n->x, n->y);
         }
