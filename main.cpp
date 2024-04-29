@@ -6,9 +6,11 @@
 #include <string>
 #include "stdio.h"
 #include <iostream>
+#include "upcxx.hpp"
 
 int main(int argc, char** argv){
     mpi_astar(argc, argv);
+
     // AStarMap map = AStarMap(10, obstacleList);
     
     //process input

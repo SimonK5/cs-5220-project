@@ -18,7 +18,7 @@ find_package(UPCXX REQUIRED)
 #endif ()
 
 #add_executable(mpi main.cpp graph.hpp graph.cpp common.h mpi.hpp)
-add_executable(upcxx main.cpp mpi.hpp graph.hpp graph.cpp common.h upcxx.hpp)
+add_executable(upcxx main.cpp graph.hpp graph.cpp common.h upcxx.hpp)
 
 #add_executable(serial main.cpp graph.hpp graph.cpp common.h serial.hpp)
 
