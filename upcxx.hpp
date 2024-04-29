@@ -18,7 +18,7 @@ int local_insert(dist_queue &lqueue, Node* n, int num_passes, int size){
     }
 }
 // trial impl, looks a lot like serial
-int hpcxx_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPoint, Point endPoint){
+int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPoint, Point endPoint){
     upcxx::init(); 
     AStarMap map = AStarMap(grid_size, obstacleList,startPoint, endPoint);
     dist_queue local_queue;// =std::priority_queue<Node*, std::vector<Node*>, NodeCompare>;
@@ -61,8 +61,8 @@ int hpcxx_astar(int grid_size, std::vector<Obstacle> obstacleList, Point startPo
             n->cost_to_come = cur->cost_to_come + 1;
             n->heuristic_cost = n->cost_to_come + n->heuristic(*(map.goal));
             n->parent = cur;
-            //open_queue.push(n);
-            map.open_node(n->pos.x, n->pos.y);
+	    upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n, 0,(*local_queue).size()).wait(); 
+	    map.open_node(n->pos.x, n->pos.y);
         }
     }
 
