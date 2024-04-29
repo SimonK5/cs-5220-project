@@ -56,18 +56,18 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
 
         std::vector<std::vector<int>> dirn = cur->get_neighbor_directions();
         for(std::vector<int> d : dirn){
-            Node *n = new Node(cur.x + d[0], cur.y + d[1]);
+            Node *n = new Node(cur->x + d[0], cur->y + d[1]);
             if(upcxx::rget(closed_set).wait().find(n) != upcxx::rget(closed_set).wait().end() || !map.is_valid_node(*n)){
                 continue;
             }
-            n.cost_to_come = cur.cost_to_come + 1;
-            n.heuristic_cost = n.cost_to_come + n.heuristic(Node(map.endX, map.endY));
-            Node new_parent = Node(cur.x, cur.y);
-            new_parent.cost_to_come = cur.cost_to_come;
-            new_parent.heuristic_cost = cur.heuristic_cost;
+            n->cost_to_come = cur->cost_to_come + 1;
+            n->heuristic_cost = n->cost_to_come + n->heuristic(Node(map.endX, map.endY));
+            Node new_parent = Node(cur->x, cur->y);
+            new_parent->cost_to_come = cur->cost_to_come;
+            new_parent->heuristic_cost = cur->heuristic_cost;
             node_to_parent[n] = new_parent;
 	        upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n, 0,(*local_queue).size()).wait(); 
-	        map.open_node(n.x, n.y);
+	        map.open_node(n->x, n->y);
         }
     }
 
@@ -75,7 +75,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
         Node* cur = end_node;
         while(node_to_parent.find(cur) != node_to_parent.end()){
             Node parent = node_to_parent[*cur];
-            map.add_to_path(cur.x, cur.y);
+            map.add_to_path(cur->x, cur->y);
             cur = parent;
         }
     }
