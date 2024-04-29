@@ -7,12 +7,12 @@
 #include "stdio.h"
 #include <upcxx/upcxx.hpp>
 
-using dist_queue = upcxx::dist_object<std::priority_queue<Node*, std::vector<Node*>, NodeCompare>>;  
+using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 //not quite the same reasoning as hashing
 //(could use the same hashing methods)
 //really looking for minimal queue
 //this may be wasteful
-int local_insert(dist_queue &lqueue, Node* n, int num_passes, int size){
+int local_insert(dist_queue &lqueue, Node n, int num_passes, int size){
     if(num_passes>=upcxx::rank_n())(*lqueue).push(n); 
     if((*lqueue).size()>=size){
         return upcxx::rpc((upcxx::rank_me()+1)%upcxx::rank_n(), local_insert,lqueue, n, num_passes+1,(*lqueue).size()).wait(); 
@@ -26,37 +26,37 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
     
     //broadcast to all local pointers
 
-    upcxx::global_ptr<std::unordered_set<Node*, NodeHash, NodeEqual>> closed_set 
-    =upcxx::broadcast(upcxx::new_<std::unordered_set<Node*, NodeHash, NodeEqual>>(),0).wait() ;
+    upcxx::global_ptr<std::unordered_set<Node, NodeHash, NodeEqual>> closed_set 
+    =upcxx::broadcast(upcxx::new_<std::unordered_set<Node, NodeHash, NodeEqual>>(),0).wait() ;
 
     if(upcxx::rank_me()==0)(*local_queue).push(map.start);
 
     std::cout << map.startX << " " << map.startY << std::endl;
     std::cout << map.goalX << " " << map.goalY << std::endl;
     upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
-    Node* end_node;
+    Node end_node;
     while((*local_queue).size() > 0){
-        Node* cur = (*local_queue).top();
+        Node cur = (*local_queue).top();
 
         (*local_queue).pop();
         if(upcxx::rget(closed_set).wait().find(cur) != upcxx::rget(closed_set).wait().end()){
             continue;
         }
-	std::unordered_set<Node*, NodeHash, NodeEqual> set = upcxx::rget(closed_set).wait();
+	std::unordered_set<Node, NodeHash, NodeEqual> set = upcxx::rget(closed_set).wait();
 	set.emplace(cur); 
 	upcxx::rput(set, closed_set).wait(); 
         map.close_node(cur.x, cur.y);
 
         if(*cur == *(map.goal)){
 		upcxx::rput(true,path_found).wait();
-            end_node = cur;
+            end_node = &cur;
             break;
         }
 
         std::vector<std::vector<int>> dirn = cur->get_neighbor_directions();
         for(std::vector<int> d : dirn){
-            Node *n = new Node(cur.x + d[0], cur.y + d[1]);
-            if(upcxx::rget(closed_set).wait().find(n) != upcxx::rget(closed_set).wait().end() || !map.is_valid_node(*n)){
+            Node n = new Node(cur.x + d[0], cur.y + d[1]);
+            if(upcxx::rget(closed_set).wait().find(n) != upcxx::rget(closed_set).wait().end() || !map.is_valid_node(n)){
                 continue;
             }
             n->cost_to_come = cur->cost_to_come + 1;
@@ -68,7 +68,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
     }
 
     if(upcxx::rget(path_found).wait()){
-        Node* cur = end_node;
+        Node cur = end_node;
         while(cur != nullptr && cur->parent != nullptr){
             cur = cur->parent;
             map.add_to_path(cur.x, cur.y);
@@ -82,7 +82,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
     set.clear(); 
     upcxx::rput(set, closed_set).wait(); 
     while (!(*local_queue).empty()) {
-        Node *n = (*local_queue).top();
+        Node n = (*local_queue).top();
         (*local_queue).pop();
         delete n;
     }
