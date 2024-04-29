@@ -6,11 +6,13 @@
 #include <string>
 #include "stdio.h"
 #include <iostream>
+#include "maze-parser.hpp"
 
 int main(int argc, char** argv){
+    // parse_maze("/global/homes/s/simonk5/cs-5220-project/mazes/easy-maze-1.txt");
     mpi_astar(argc, argv);
     // std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
-    // AStarMap map = AStarMap(10, obstacleList, 9, 9, 8, 2);
+    // AStarMap map = AStarMap(10000, obstacleList);
     // int result = serial_astar(map);
     
     //process input
