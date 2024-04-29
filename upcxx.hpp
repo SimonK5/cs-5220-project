@@ -73,10 +73,10 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
 
     if(upcxx::rget(path_found).wait()){
         Node* cur = end_node;
-        while(node_to_parent.find(cur) != node_to_parent.end()){
+        while(node_to_parent.find(*cur) != node_to_parent.end()){
             Node parent = node_to_parent[*cur];
             map.add_to_path(cur->x, cur->y);
-            cur = parent;
+            cur = &parent;
         }
     }
 
