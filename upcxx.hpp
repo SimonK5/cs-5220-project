@@ -63,8 +63,8 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
             n->cost_to_come = cur->cost_to_come + 1;
             n->heuristic_cost = n->cost_to_come + n->heuristic(Node(map.endX, map.endY));
             Node new_parent = Node(cur->x, cur->y);
-            new_parent->cost_to_come = cur->cost_to_come;
-            new_parent->heuristic_cost = cur->heuristic_cost;
+            new_parent.cost_to_come = cur->cost_to_come;
+            new_parent.heuristic_cost = cur->heuristic_cost;
             node_to_parent[n] = new_parent;
 	        upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n, 0,(*local_queue).size()).wait(); 
 	        map.open_node(n->x, n->y);
