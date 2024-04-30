@@ -12,15 +12,24 @@ using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node
 //(could use the same hashing methods)
 //really looking for minimal queue
 //this may be wasteful
-int local_insert(dist_queue &lqueue, Node n, int num_passes, int size){
+int local_insert(dist_queue &lqueue, int x, int y, int num_passes, int size){
     if(num_passes<upcxx::rank_n()&&(*lqueue).size()>=size){
  /// return 1; //   return upcxx::rpc((upcxx::rank_me()+1)%upcxx::rank_n(), local_insert,nullptr, n, num_passes+1,(*lqueue).size()).wait(); 
-      return upcxx::rpc((upcxx::rank_me()+1)%upcxx::rank_n(), local_insert, lqueue, n, num_passes+1,(*lqueue).size()).wait(); 
+      return upcxx::rpc((upcxx::rank_me()+1)%upcxx::rank_n(), local_insert, lqueue, x, y, num_passes+1,(*lqueue).size()).wait(); 
    }
-     (*lqueue).push(n); 
+     (*lqueue).push(Node(x,y)); 
    //(*lqueue).pop(); 
 //	return 0;
      return num_passes; 
+}
+bool local_find(upcxx::global_ptr<std::unordered_set<Node, NodeHash, NodeEqual>> closed_set,int x, int y){
+	std::unordered_set<Node, NodeHash, NodeEqual>* closed = closed_set.local(); 
+	if(closed->find(Node(x,y))!=closed->end())return true;
+       	return false; 
+} 
+void local_emplace(upcxx::global_ptr<std::unordered_set<Node, NodeHash, NodeEqual>> closed_set, int x, int y){
+	std::unordered_set<Node, NodeHash, NodeEqual>* closed = closed_set.local(); 
+	closed->emplace(Node(x, y));
 }
 // trial impl, looks a lot like serial
 int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
@@ -30,7 +39,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
     
     //broadcast to all local pointers
 
-    upcxx::global_ptr<std::unordered_set<Node, NodeHash, NodeEqual>> closed_set 
+    upcxx::global_ptr<std::unordered_set<Node, NodeHash, NodeEqual>>  closed_set 
     =upcxx::broadcast(upcxx::new_<std::unordered_set<Node, NodeHash, NodeEqual>>(),0).wait() ;
     std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
 
@@ -44,12 +53,13 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
         Node cur = (*local_queue).top();
 
         (*local_queue).pop();
-        if(upcxx::rget(closed_set).wait().find(cur) != upcxx::rget(closed_set).wait().end()){
+       if(upcxx::rpc(0, local_find,closed_set,cur.x, cur.y).wait()){// if(upcxx::rget(closed_set).wait().find(cur) != upcxx::rget(closed_set).wait().end()){
             continue;
         }
-	std::unordered_set<Node, NodeHash, NodeEqual> set = upcxx::rget(closed_set).wait();
-	set.emplace(cur); 
-	upcxx::rput(set, closed_set).wait(); 
+	//std::unordered_set<Node, NodeHash, NodeEqual> set = upcxx::rget(closed_set).wait();
+	//set.emplace(cur); 
+       upcxx::rpc(0, local_emplace, closed_set,cur.x, cur.y).wait(); 
+//	upcxx::rput(set, closed_set).wait(); 
         map.close_node(cur.x, cur.y);
 
         if(cur ==Node(map.endX, map.endY)){
@@ -61,7 +71,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
         std::vector<std::vector<int>> dirn = cur.get_neighbor_directions();
         for(std::vector<int> d : dirn){
             Node n = Node(cur.x + d[0], cur.y + d[1]);
-            if(upcxx::rget(closed_set).wait().find(n) != upcxx::rget(closed_set).wait().end() || !map.is_valid_node(n)){
+            if(upcxx::rpc(0, local_find,closed_set,cur.x, cur.y).wait()|| !map.is_valid_node(n)){
                 continue;
             }
             n.cost_to_come = cur.cost_to_come + 1;
@@ -70,7 +80,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
             new_parent.cost_to_come = cur.cost_to_come;
             new_parent.heuristic_cost = cur.heuristic_cost;
             node_to_parent[n] = new_parent;
-	       upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n, 0,(*local_queue).size()).wait(); 
+	       upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n.x, n.y, 0,(*local_queue).size()).wait(); 
 	        map.open_node(n.x, n.y);
         }
     }
