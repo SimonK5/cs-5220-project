@@ -53,9 +53,7 @@ void init(AStarMap map, int rank, int num_procs){
  * Sends a list of nodes to a given processor.
 */
 void send_msg(int other, const std::vector<Node>& nodes, MPI_Request &request){
-    // std::cout << nodes.size() << std::endl;
     MPI_Isend(&nodes[0], nodes.size(), MPI_Vertex, other, 0, MPI_COMM_WORLD, &request);
-    // delete[] buf;
 }
 
 void send_msg(int other, const std::vector<Node>& nodes){
@@ -122,18 +120,27 @@ bool receiveMessages(int rank, int num_procs, AStarMap &map){
  * Performs one step of the A* algorithm.
 */
 void step(AStarMap &map, int rank, int num_procs){
-    // TODO: check if new states have been received in the message queue
     bool receivedMessages = receiveMessages(rank, num_procs, map);
-    // int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
-    // float pathBuffer;
-    // if(rank == end_proc){
-    //     pathBuffer = minLengthPath;
-    // }
-    // MPI_Request pathRequest;
-    // MPI_Ibcast(&pathBuffer, 1, MPI_FLOAT, end_proc, MPI_COMM_WORLD, &pathRequest);
-    // if(rank != end_proc && (pathBuffer < minLengthPath || minLengthPath == -1)){
-    //     minLengthPath = pathBuffer;
-    // }
+
+    int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
+    if(rank != end_proc){
+        int msg_waiting;
+        MPI_Status status;
+        MPI_Iprobe(end_proc, 1, MPI_COMM_WORLD, &msg_waiting, &status);
+        if(msg_waiting){
+            int size;
+            MPI_Get_count(&status, MPI_FLOAT, &size);
+            if(size == 1){
+                float receivedMinPath;
+                MPI_Request request;
+                MPI_Irecv(&receivedMinPath, 1, MPI_FLOAT, end_proc, 1, MPI_COMM_WORLD, &request);
+                if(receivedMinPath < minLengthPath || minLengthPath == -1){
+                    minLengthPath = receivedMinPath;
+                    // std::cout << "min length path set to " << minLengthPath << std::endl;
+                }
+            }
+        }
+    }
 
 
     if(open_queue.size() == 0){
@@ -165,6 +172,13 @@ void step(AStarMap &map, int rank, int num_procs){
 
             if(n.cost_to_come < minLengthPath || minLengthPath < 0){
                 minLengthPath = n.cost_to_come;
+
+                for(int i = 0; i < num_procs; i++){
+                    if(i == rank) continue;
+
+                    MPI_Request request;
+                    MPI_Isend(&minLengthPath, 1, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request);
+                }
             }
         }
 
@@ -177,11 +191,11 @@ void step(AStarMap &map, int rank, int num_procs){
                     continue;
             }
             if(costs_to_come.find(neighbor) != costs_to_come.end() 
-                && n.cost_to_come + 1 >= costs_to_come[neighbor]){
+                && n.cost_to_come + map.get_edge_weight(n, neighbor) >= costs_to_come[neighbor]){
                     continue;
             }
             // map.open_node(neighbor.x, neighbor.y);
-            neighbor.cost_to_come = n.cost_to_come + 1;
+            neighbor.cost_to_come = n.cost_to_come + map.get_edge_weight(n, neighbor);
             neighbor.heuristic_cost = neighbor.cost_to_come + neighbor.heuristic(Node(map.endX, map.endY));
             neighbor.parentX = n.x;
             neighbor.parentY = n.y;
@@ -204,8 +218,6 @@ void step(AStarMap &map, int rank, int num_procs){
 
         send_nodes();
     }
-
-    // TODO: Convergence check. Add barrier if size of openSet is 0. If no procs have new messages, terminate
 }
 
 /**
@@ -256,11 +268,11 @@ void mpi_astar(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int map_size = 10;
+    int map_size = 500;
 
     std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
     // std::cout << "make map" << std::endl;
-    AStarMap map = AStarMap(map_size, obstacleList);
+    AStarMap map = AStarMap(map_size, obstacleList, 20, 20, 400, 400);
     int params[4];
     if(rank == 0){
         // map.render();
@@ -315,8 +327,8 @@ void mpi_astar(int argc, char** argv){
     for(Node n : path){
         map.add_to_path(n.x, n.y);
     }
-    map.render();
-    std::cout << std::endl;
+    // map.render();
+    // std::cout << std::endl;
     // }
 }
 
