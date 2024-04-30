@@ -44,6 +44,15 @@ public:
         int dy = y - other.y;
         return std::abs(dx) + std::abs(dy);
     }
+
+    float get_weight(Node other, unsigned int seed) {
+        std::size_t hash = std::hash<int>{}(x) ^ std::hash<int>{}(y) ^
+                        std::hash<int>{}(other.x) ^ std::hash<int>{}(other.y) ^ std::hash<unsigned int>{}(seed);
+        std::mt19937 rng(hash);
+        std::uniform_real_distribution<float> dist(0.1, 10);
+        float weight = dist(rng);
+        return weight;
+    }
 };
 
 // Necessary for using an unordered_set of Nodes
@@ -98,6 +107,7 @@ public:
     int size;
     std::vector<Obstacle> obstacles;
     std::vector<std::vector<char>> grid;
+    int seed = 5;
 
     AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s), startX(0), startY(0), endX(0), endY(0){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
@@ -203,6 +213,10 @@ public:
             }
             std::cout << std::endl;
         }
+    }
+
+    float get_edge_weight(Node parent, Node child){
+        return parent.get_weight(child, seed);
     }
 };
 

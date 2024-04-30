@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <limits>
+#include <chrono>
 #include "graph.hpp"
 
 std::priority_queue<Node, std::vector<Node>, NodeCompare> open_queue;
@@ -51,49 +52,37 @@ void init(AStarMap map, int rank, int num_procs){
 /**
  * Sends a list of nodes to a given processor.
 */
+void send_msg(int other, const std::vector<Node>& nodes, MPI_Request &request){
+    // std::cout << nodes.size() << std::endl;
+    MPI_Isend(&nodes[0], nodes.size(), MPI_Vertex, other, 0, MPI_COMM_WORLD, &request);
+    // delete[] buf;
+}
+
 void send_msg(int other, const std::vector<Node>& nodes){
     MPI_Request request;
-    MPI_Isend(&nodes[0], nodes.size(), MPI_Vertex, other, 0, MPI_COMM_WORLD, &request);
+    send_msg(other, nodes, request);
 }
 
 /**
  * Sends all of the queued nodes to send to their corresponding owner processors.
 */
 void send_nodes(){
+    int size = 0;
+
+    MPI_Request* requests = new MPI_Request[to_send.size()];
+    MPI_Status* statuses = new MPI_Status[to_send.size()];
+
+    int i = 0;
     for (const auto &pair : to_send) {
         int proc = pair.first;
         const std::vector<Node> &node_list = pair.second;
-        if(node_list.size() > 0){
-            // printf("sending list of size %d to %d\n", node_list.size(), proc);
-            send_msg(proc, node_list);
-        }
+        send_msg(proc, node_list, requests[i]);
+        i += 1;
     }
-}
 
-/**
- * Obtains and returns a list of nodes sent from another rank to this rank.
-*/
-std::vector<Node> receive_nodes(int rank, int other){
-    MPI_Status status;
-    int flag;
-    MPI_Iprobe(other, 0, MPI_COMM_WORLD, &flag, &status);
-    int size;
-    MPI_Get_count(&status, MPI_Vertex, &size);
-    // printf("%d probing, got size %d with flag %d\n", rank, size, flag);
-    
-    std::vector<Node> buffer(0);
-    if(!flag){
-        return buffer;
-    }
-    buffer = std::vector<Node>(size);
-    
-    // printf("%d receiving\n", rank);
-    MPI_Request request;
-    MPI_Irecv(&buffer[0], size, MPI_Vertex, other, 0, MPI_COMM_WORLD, &request);
-    for(Node n : buffer){
-        // printf("%d received %d, %d from %d\n", rank, n.x, n.y, other);
-    }
-    return buffer;
+    MPI_Waitall(to_send.size(), requests, statuses);
+    delete[] requests;
+    delete[] statuses;
 }
 
 /**
@@ -101,18 +90,28 @@ std::vector<Node> receive_nodes(int rank, int other){
  * 
  * Side effects: New nodes are pushed to the open queue.
 */
-bool receiveMessages(int rank, int num_procs){
+bool receiveMessages(int rank, int num_procs, AStarMap &map){
     bool receivedMessage = false;
-    for(int i = 0; i < num_procs; i++){
-        std::vector<Node> nodes = receive_nodes(rank, i);
-        if(nodes.size() > 0) receivedMessage = true;
+
+    MPI_Status status;
+    int msg_waiting;
+    MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &msg_waiting, &status);
+    while(msg_waiting){
+        receivedMessage = true;
+        int size;
+        MPI_Get_count(&status, MPI_Vertex, &size);
+        std::vector<Node> nodes(size);
+        MPI_Request request;
+        MPI_Irecv(&nodes[0], size, MPI_Vertex, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &request);
         for(Node n : nodes){
             if(closed_set.find(n) == closed_set.end()){
-                    costs_to_come[n] = n.cost_to_come;
-                    // printf("%d pushing %d, %d, %f, %f\n", rank, n.x, n.y, n.cost_to_come, n.heuristic_cost);
-                    open_queue.push(n);
+                costs_to_come[n] = n.cost_to_come;
+                // printf("%d pushing %d, %d, %f, %f\n", rank, n.x, n.y, n.cost_to_come, n.heuristic_cost);
+                open_queue.push(n);
             }
         }
+
+        MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &msg_waiting, &status);
     }
 
     return receivedMessage;
@@ -123,25 +122,23 @@ bool receiveMessages(int rank, int num_procs){
  * Performs one step of the A* algorithm.
 */
 void step(AStarMap &map, int rank, int num_procs){
-    to_send.clear();
-
     // TODO: check if new states have been received in the message queue
-    bool receivedMessages = receiveMessages(rank, num_procs);
-    int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
-    float pathBuffer;
-    if(rank == end_proc){
-        pathBuffer = minLengthPath;
-    }
-    MPI_Request pathRequest;
-    MPI_Ibcast(&pathBuffer, 1, MPI_FLOAT, end_proc, MPI_COMM_WORLD, &pathRequest);
-    if(rank != end_proc && (pathBuffer < minLengthPath || minLengthPath == -1)){
-        minLengthPath = pathBuffer;
-    }
+    bool receivedMessages = receiveMessages(rank, num_procs, map);
+    // int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
+    // float pathBuffer;
+    // if(rank == end_proc){
+    //     pathBuffer = minLengthPath;
+    // }
+    // MPI_Request pathRequest;
+    // MPI_Ibcast(&pathBuffer, 1, MPI_FLOAT, end_proc, MPI_COMM_WORLD, &pathRequest);
+    // if(rank != end_proc && (pathBuffer < minLengthPath || minLengthPath == -1)){
+    //     minLengthPath = pathBuffer;
+    // }
 
 
     if(open_queue.size() == 0){
         MPI_Barrier(MPI_COMM_WORLD);
-        receivedMessages = receiveMessages(rank, num_procs);
+        receivedMessages = receiveMessages(rank, num_procs, map);
         // std::cout << rank << " received: " << receivedMessages << std::endl;
 
         bool anyReceivedMessages;
@@ -173,6 +170,7 @@ void step(AStarMap &map, int rank, int num_procs){
 
         if(n.heuristic_cost > minLengthPath && minLengthPath != -1) return;
 
+        to_send.clear();
         for(auto d : n.get_neighbor_directions()){
             Node neighbor(n.x + d[0], n.y + d[1], n.x, n.y);
             if(!map.is_valid_node(neighbor) || closed_set.find(neighbor) != closed_set.end()){
@@ -182,7 +180,7 @@ void step(AStarMap &map, int rank, int num_procs){
                 && n.cost_to_come + 1 >= costs_to_come[neighbor]){
                     continue;
             }
-            map.open_node(neighbor.x, neighbor.y);
+            // map.open_node(neighbor.x, neighbor.y);
             neighbor.cost_to_come = n.cost_to_come + 1;
             neighbor.heuristic_cost = neighbor.cost_to_come + neighbor.heuristic(Node(map.endX, map.endY));
             neighbor.parentX = n.x;
@@ -217,15 +215,23 @@ void step(AStarMap &map, int rank, int num_procs){
  * next node in the path.
 */
 void backtrack(AStarMap map, int rank, int num_procs){
-    for(int i = 0; i < num_procs; i++){
-        std::vector<Node> nodes = receive_nodes(rank, i);
-        if(nodes.size() > 0){
-            path = nodes;
-            break;
-        }
-    }
 
     bool indivPathFound = false;
+
+    MPI_Status status;
+    int incoming_msg = 0;
+    MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD,
+            &incoming_msg, &status);
+    
+    if(incoming_msg){
+        int size;
+        MPI_Get_count(&status, MPI_Vertex, &size);
+        path = std::vector<Node>(size);
+
+        MPI_Request request;
+        MPI_Irecv(&path[0], size, MPI_Vertex, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &request);
+    }
+
     if(path.size() > 0){
         Node cur_node = path[path.size() - 1];
         if(cur_node == Node(map.startX, map.startY)){
@@ -240,9 +246,7 @@ void backtrack(AStarMap map, int rank, int num_procs){
     }
 
     MPI_Allreduce(&indivPathFound, &pathFound, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-    if(pathFound) return;
-
-    path = std::vector<Node>();
+    if(!pathFound) path.clear();
 }
 
 void mpi_astar(int argc, char** argv){
@@ -252,13 +256,14 @@ void mpi_astar(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int map_size = 20;
+    int map_size = 10;
 
     std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
+    // std::cout << "make map" << std::endl;
     AStarMap map = AStarMap(map_size, obstacleList);
     int params[4];
     if(rank == 0){
-        map.render();
+        // map.render();
         // map.print_assignments(num_procs);
         params[0] = map.startX;
         params[1] = map.startY;
@@ -266,22 +271,20 @@ void mpi_astar(int argc, char** argv){
         params[3] = map.endY;
     }
 
+    // std::cout << "get/set params" << std::endl;
     MPI_Bcast(params, 4, MPI_INT, 0, MPI_COMM_WORLD);
     if(rank != 0){
         map = AStarMap(map_size, obstacleList, params[0], params[1], params[2], params[3]);
     }
 
+    // if(rank == 0) std::cout << "init" << std::endl;
     init(map, rank, num_procs);
-    
-    int nsteps = 200;
+
+    auto start_time = std::chrono::steady_clock::now();
+    if(rank == 0) std::cout << "start" << std::endl;
     while(!terminate){
-        // printf("\n%d step %d\n", rank, s);
         step(map, rank, num_procs);
     }
-    // for(int i = 0; i < nsteps; i++){
-    //     // std::cout << rank << " i: " << i << std::endl;
-    //     step(map, rank, num_procs);
-    // }
 
     // get rank of final processor
     int final_rank = map.get_proc(Node(map.endX, map.endY), num_procs);
@@ -294,18 +297,27 @@ void mpi_astar(int argc, char** argv){
             std::cout << "final node has no parent" << std::endl;
         }
         std::cout << "looking for path" << std::endl;
-        map.render();
+        // map.render();
     }
     while(!pathFound){
         backtrack(map, rank, num_procs);
     }
     int initial_rank = map.get_proc(Node(map.startX, map.startY), num_procs);
-    if(rank == initial_rank){
-        for(Node n : path){
-            map.add_to_path(n.x, n.y);
-        }
-        map.render();
+
+    auto end_time = std::chrono::steady_clock::now();
+    std::chrono::duration<double> diff = end_time - start_time;
+    double seconds = diff.count();
+    if(rank == 0){
+        std::cout << "Path is of length " << path.size() << std::endl;
+        std::cout << "Time taken (s): " << seconds << std::endl;
+    } 
+    // if(rank == initial_rank){
+    for(Node n : path){
+        map.add_to_path(n.x, n.y);
     }
+    map.render();
+    std::cout << std::endl;
+    // }
 }
 
 #endif
