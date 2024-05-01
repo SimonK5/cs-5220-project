@@ -28,22 +28,24 @@ void local_emplace(dist_set &closed, int x, int y){
 }
 // trial impl, looks a lot like serial
 int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
-    upcxx::init(); 
+  //  upcxx::init(); 
     AStarMap map = AStarMap(grid_size, obstacleList);//,startPoint, endPoint);
-    dist_queue local_queue;// =std::priority_queue<Node*, std::vector<Node*>, NodeCompare>;
+    upcxx::init(); 
+    dist_queue local_queue({});// =std::priority_queue<Node*, std::vector<Node*>, NodeCompare>;
     
     //broadcast to all local pointers
+    dist_set closed_set({});
 
-    dist_set closed_set;
     std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
 
     if(upcxx::rank_me()==0)(*local_queue).push(Node(map.startX, map.startY));
 
     std::cout << map.startX << " " << map.startY << std::endl;
     std::cout << map.endX << " " << map.endY << std::endl;
+   
     upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
     Node end_node;
-    while((*local_queue).size() > 0){
+   while((*local_queue).size() > 0){
         Node cur = (*local_queue).top();
 
         (*local_queue).pop();
@@ -87,5 +89,6 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
 
     map.render();
     upcxx::finalize(); 
+    std::cout<<end_node.cost_to_come; 
     return end_node.cost_to_come;
 }

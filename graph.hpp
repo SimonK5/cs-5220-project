@@ -112,16 +112,16 @@ public:
             }
         }
         std::uniform_int_distribution<> distrib(0, s-1);
-        startX = 0;// distrib(gen);
-        startY = 1;// distrib(gen);
+        startX = distrib(gen);
+        startY = distrib(gen);
         while(initGrid[startX][startY] == 'X'){
             startX = distrib(gen);
             startY = distrib(gen);
         }
         initGrid[startX][startY] = 'S';
 
-        endX =1;// distrib(gen);
-        endY =1;// distrib(gen);
+        endX = distrib(gen);
+        endY = distrib(gen);
         while(initGrid[endX][endY] == 'X' || initGrid[endX][endY] == 'S'){
             endX = distrib(gen);
             endY = distrib(gen);
