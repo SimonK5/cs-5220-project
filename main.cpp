@@ -1,10 +1,6 @@
 #include "common.h"
 #include "graph.hpp"
-<<<<<<< HEAD
 #include "serial.hpp"
-=======
-// #include "serial.hpp"
->>>>>>> e79273a (fix compiling)
 #include "mpi.hpp"
 #include <sstream>
 #include <string>

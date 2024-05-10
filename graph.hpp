@@ -43,7 +43,6 @@ public:
         int dx = x - other.x;
         int dy = y - other.y;
         return std::abs(dx) + std::abs(dy);
-<<<<<<< HEAD
     }
 
     float get_weight(Node other, unsigned int seed) {
@@ -53,8 +52,6 @@ public:
         std::uniform_real_distribution<float> dist(1, 10);
         float weight = dist(rng);
         return weight;
-=======
->>>>>>> e79273a (fix compiling)
     }
 };
 
