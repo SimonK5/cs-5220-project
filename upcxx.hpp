@@ -60,7 +60,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
      map.endY = upcxx::rpc(0, endY, amap).wait(); 
      //upcxx::rget(gmap).wait(); 
     dist_set closed_set = dist_set({});
-    dist_map node_to_parent;
+    dist_map node_to_parent = dist_map({});
 
     if(upcxx::rank_me()==map.get_proc(Node(map.startX, map.startY), upcxx::rank_n()))(*local_queue).push(Node(map.startX, map.startY));
     std::cout << map.startX << " " << map.startY << std::endl;
@@ -73,69 +73,70 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
      std::cout << upcxx::rank_me() << " " << "loop"  << std::endl;
      upcxx::barrier(); 
     while((*local_queue).size() > 0||upcxx::rget(count).wait()>0||init){
-	  
+	    upcxx::barrier();   
 	std::cout << upcxx::rank_me() << " " << "in loop" << std::endl;
 	init = false; //enter loop
 
 	if((*local_queue).size()>0){
 	
 	upcxx::rpc(0,atomic_add, count, 1).wait(); 
-	std::cout<<upcxx::rank_me()<<" " <<"add"<<std::endl;
+//	std::cout<<upcxx::rank_me()<<" " <<"add"<<std::endl;
 	init = false; 
         Node cur = (*local_queue).top();
  	std::cout << "proc" <<upcxx::rank_me() << " " << (*local_queue).size() << std::endl;
     
 
         (*local_queue).pop();
-	std::cout <<"proc  "<<upcxx::rank_me() << "  pop"<<std::endl; 
-	std::cout<< "proc  "<<upcxx::rank_me() << "  popA"<<std::endl; 
+	std::cout <<"proc  "<<upcxx::rank_me() << "  pop   "<<(*local_queue).size()<<std::endl; 
+//	std::cout<< "proc  "<<upcxx::rank_me() << "  popA"<<std::endl; 
 	closed_set;
 	//std::cout<<"proc  "<<upcxx::rank_me() <<"  len  " <<closed_set.size()<<std::endl; 
-	std::cout<<" proc "<<upcxx::rank_me() << "pop End"<<std::endl;
+//	std::cout<<" proc "<<upcxx::rank_me() << "pop End"<<std::endl;
        if(upcxx::rpc(0, local_find,closed_set,cur.x, cur.y).wait()){
             continue;
         } 
        upcxx::rpc(0, local_emplace, closed_set,cur.x, cur.y).wait(); 
         std::cout<< "proc "<<upcxx::rank_me() <<"   emplace"<<std::endl; 
        map.close_node(cur.x, cur.y);
- 	 std::cout<< "proc "<<upcxx::rank_me() <<"   close   "<<std::endl; 
+ 	// std::cout<< "proc "<<upcxx::rank_me() <<"   close   "<<std::endl; 
        if(cur ==Node(map.endX, map.endY)){
             upcxx::rput(true,path_found).wait();
             end_node = cur;
             break;
         }
-	 std::cout<< "proc "<<upcxx::rank_me() <<"   c   "<<std::endl; 
+	 //std::cout<< "proc "<<upcxx::rank_me() <<"   c   "<<std::endl; 
        
         std::vector<std::vector<int>> dirn = cur.get_neighbor_directions();
 
         for(std::vector<int> d : dirn){
-           std::cout<< "proc "<<upcxx::rank_me() <<"   d   "<<std::endl; 
+     //      std::cout<< "proc "<<upcxx::rank_me() <<"   d   "<<std::endl; 
          Node n = Node(cur.x + d[0], cur.y + d[1]);
             if(upcxx::rpc(map.get_proc(n, upcxx::rank_n()), local_find,closed_set,cur.x, cur.y).wait()|| !map.is_valid_node(n)){
                 continue;
             }
-              std::cout<< "proc "<<upcxx::rank_me() <<"   e  "<<std::endl; 
+       //       std::cout<< "proc "<<upcxx::rank_me() <<"   e  "<<std::endl; 
          n.cost_to_come = cur.cost_to_come + 1;
-               std::cout<< "proc "<<upcxx::rank_me() <<"   f  "<<std::endl; 
+  //             std::cout<< "proc "<<upcxx::rank_me() <<"   f  "<<std::endl; 
 n.heuristic_cost = n.cost_to_come + n.heuristic(Node(map.endX, map.endY));
-             std::cout<< "proc "<<upcxx::rank_me() <<"   g  "<<std::endl; 
+    //         std::cout<< "proc "<<upcxx::rank_me() <<"   g  "<<std::endl; 
 Node new_parent = Node(cur.x, cur.y);
-     std::cout<< "proc "<<upcxx::rank_me() <<"   h  "<<std::endl; 
+    // std::cout<< "proc "<<upcxx::rank_me() <<"   h  "<<std::endl; 
           new_parent.cost_to_come = cur.cost_to_come;
-      std::cout<< "proc "<<upcxx::rank_me() <<"   i  "<<std::endl; 
+     // std::cout<< "proc "<<upcxx::rank_me() <<"   i  "<<std::endl; 
          new_parent.heuristic_cost = cur.heuristic_cost;
-            std::cout<< "proc "<<upcxx::rank_me() <<"   j  "<<std::endl; 
+       //     std::cout<< "proc "<<upcxx::rank_me() <<"   j  "<<std::endl; 
    (*node_to_parent)[n] = new_parent;
- std::cout<< "proc "<<upcxx::rank_me() <<"  k   "<<std::endl; 
+      //  std::cout<< "proc "<<upcxx::rank_me() <<"  k   "<<std::endl; 
   
 	       upcxx::rpc(map.get_proc(n, upcxx::rank_n()), local_insert,local_queue, n.x, n.y, 0,(*local_queue).size()).wait(); 
-	      std::cout<< "proc "<<upcxx::rank_me() <<"   l  "<<std::endl; 
-     map.open_node(n.x, n.y);
- std::cout<< "proc "<<upcxx::rank_me() <<"   m  "<<std::endl; 
+	 //     std::cout<< "proc "<<upcxx::rank_me() <<"   l  "<<std::endl; 
+       map.open_node(n.x, n.y);
+      //  std::cout<< "proc "<<upcxx::rank_me() <<"   m  "<<std::endl; 
   
         }
-	std::cout<<" proc"<<upcxx::rank_me()<< " -3 " <<std::endl; 
+//	std::cout<<" proc"<<upcxx::rank_me()<< " -3 " <<std::endl; 
 		upcxx::rpc(0, atomic_add, count, -1).wait(); 
+		std::cout<<"proc"<<upcxx::rank_me()<<"-4"<<std::endl; 
 }
 upcxx::barrier(); 
 	std::cout << "proc" <<upcxx::rank_me() << " -2 " <<upcxx::rget(count).wait() << std::endl;
