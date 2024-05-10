@@ -43,7 +43,7 @@ int endY(dist_amap& map){
 
 
 // trial impl, looks a lot like serial
-int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
+void upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
     // AStarMap map =AStarMap(grid_size,obstacleList); 
      upcxx::init(); 
    // upcxx::broadcast(0, AStarMap(grid_size, obstacleList)).wait(); 
@@ -69,6 +69,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
      upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
     Node end_node;
     upcxx::global_ptr<int> count = upcxx::broadcast(upcxx::new_<int>(0),0).wait();  
+int local = 0; 
     bool init = true; 
      std::cout << upcxx::rank_me() << " " << "loop"  << std::endl;
      upcxx::barrier(); 
@@ -76,10 +77,12 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
 	    upcxx::barrier();   
 	std::cout << upcxx::rank_me() << " " << "in loop" << std::endl;
 	init = false; //enter loop
+	std::cout <<"proc  "<<upcxx::rank_me() << " outer loop   "<<(*local_queue).size()<<std::endl; 
 
-	if((*local_queue).size()>0){
-	
-	upcxx::rpc(0,atomic_add, count, 1).wait(); 
+	if((*local_queue).size()==0){local = 0; }
+	else{
+	local =1; 
+//	upcxx::rpc(0,atomic_add, count, 1).wait(); 
 //	std::cout<<upcxx::rank_me()<<" " <<"add"<<std::endl;
 	init = false; 
         Node cur = (*local_queue).top();
@@ -135,15 +138,20 @@ Node new_parent = Node(cur.x, cur.y);
   
         }
 //	std::cout<<" proc"<<upcxx::rank_me()<< " -3 " <<std::endl; 
-		upcxx::rpc(0, atomic_add, count, -1).wait(); 
 		std::cout<<"proc"<<upcxx::rank_me()<<"-4"<<std::endl; 
-}
-upcxx::barrier(); 
-	std::cout << "proc" <<upcxx::rank_me() << " -2 " <<upcxx::rget(count).wait() << std::endl;
-    	std::cout << "proc" <<upcxx::rank_me() << " -1  " << upcxx::rget(count).wait() << std::endl;
-    
-}
 
+	}
+	upcxx::barrier(); 
+	upcxx::rpc(0, atomic_add, count, 0-local).wait(); 
+	upcxx::barrier(); 
+	if((*local_queue).size()>0)upcxx::rpc(0, atomic_add, count, 1).wait(); 
+	upcxx::barrier(); 
+	std::cout << "proc" <<upcxx::rank_me() << " -2 " <<upcxx::rget(count).wait() << std::endl;
+     	std::cout << "proc" <<upcxx::rank_me() << " -1  " << upcxx::rget(count).wait() << std::endl;
+   
+}
+  	std::cout << "proc" <<upcxx::rank_me() << " outloop  " << upcxx::rget(count).wait() << std::endl;
+  
     if(upcxx::rget(path_found).wait()){
         Node cur = end_node;
         while((*node_to_parent).find(cur) != (*node_to_parent).end()){
@@ -152,8 +160,9 @@ upcxx::barrier();
             cur = parent;
         }
     } 
-
+   std::cout << "proc" <<upcxx::rank_me() << " end  " << upcxx::rget(count).wait() << std::endl;
+ 
     map.render();
     upcxx::finalize(); 
-    return end_node.cost_to_come;
+  //  return end_node.cost_to_come;
 }
