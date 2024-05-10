@@ -9,10 +9,10 @@
 #include "upcxx.hpp"
 
 int main(int argc, char** argv){
-    mpi_astar(argc, argv);
+    //mpi_astar(argc, argv);
 
-    // AStarMap map = AStarMap(10, obstacleList);
-    
+   // AStarMap map = AStarMap(10, obstacleList);
+    upcxx_astar(10, {}); 
     //process input
     //assume that all input files are of the form F:= H\n(C\n)*
     //H := <grid size> <solution value>
