@@ -9,16 +9,12 @@
 
 using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 using dist_set = upcxx::dist_object<std::unordered_set<Node, NodeHash, NodeEqual>>;  
-
+using dist_map = upcxx::dist_object<std::unordered_map<Node, Node, NodeHash, NodeEqual>>;
 int local_insert(dist_queue &lqueue, int x, int y, int num_passes, int size){
-    if(num_passes<upcxx::rank_n()&&(*lqueue).size()>=size){      
-        return upcxx::rpc((upcxx::rank_me()+1)%upcxx::rank_n(), local_insert, lqueue, x, y, num_passes+1,(*lqueue).size()).wait(); 
-    }
      (*lqueue).push(Node(x,y)); 
      return num_passes; 
 }
 bool local_find(dist_set &closed,int x, int y){
-	//std::unordered_set<Node, NodeHash, NodeEqual>* closed = closed_set.local(); 
 	if(closed->find(Node(x,y))!=closed->end())return true;
        	return false; 
 } 
@@ -29,15 +25,15 @@ void local_emplace(dist_set &closed, int x, int y){
 // trial impl, looks a lot like serial
 int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
     upcxx::init(); 
-    AStarMap map = AStarMap(grid_size, obstacleList);//,startPoint, endPoint);
-    dist_queue local_queue;// =std::priority_queue<Node*, std::vector<Node*>, NodeCompare>;
+    AStarMap map = AStarMap(grid_size, obstacleList);
+    dist_queue local_queue;
     
     //broadcast to all local pointers
 
     dist_set closed_set;
-    std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
+    dist_map node_to_parent;
 
-    if(upcxx::rank_me()==0)(*local_queue).push(Node(map.startX, map.startY));
+    if(upcxx::rank_me()==get_proc(Node(map.startX, map.startY), upcxx::rank_n()))(*local_queue).push(Node(map.startX, map.startY));
 
     std::cout << map.startX << " " << map.startY << std::endl;
     std::cout << map.endX << " " << map.endY << std::endl;
@@ -62,7 +58,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
         std::vector<std::vector<int>> dirn = cur.get_neighbor_directions();
         for(std::vector<int> d : dirn){
             Node n = Node(cur.x + d[0], cur.y + d[1]);
-            if(upcxx::rpc(0, local_find,closed_set,cur.x, cur.y).wait()|| !map.is_valid_node(n)){
+            if(upcxx::rpc(get_proc(n, upcxx::rank_n()), local_find,closed_set,cur.x, cur.y).wait()|| !map.is_valid_node(n)){
                 continue;
             }
             n.cost_to_come = cur.cost_to_come + 1;
@@ -71,7 +67,7 @@ int upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point sta
             new_parent.cost_to_come = cur.cost_to_come;
             new_parent.heuristic_cost = cur.heuristic_cost;
             node_to_parent[n] = new_parent;
-	       upcxx::rpc((upcxx::rank_me())%upcxx::rank_n(), local_insert,local_queue, n.x, n.y, 0,(*local_queue).size()).wait(); 
+	       upcxx::rpc(get_proc(n, upcxx::rank_n()), local_insert,local_queue, n.x, n.y, 0,(*local_queue).size()).wait(); 
 	        map.open_node(n.x, n.y);
         }
     }
