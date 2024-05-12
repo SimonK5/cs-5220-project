@@ -41,6 +41,15 @@ int endY(dist_amap& map){
 	return map->endY; 
 }
 
+void close_node(dist_amap& map, int x, int y){
+	(*map).close_node(x, y); 
+}
+void add_to_path(dist_amap& map, int x, int y){
+	(*map).add_to_path(x, y); 
+}
+void open_node(dist_amap& map, int x, int y){
+	(*map).open_node(x,y); 
+}
 
 // trial impl, looks a lot like serial
 void upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point startPoint, Point endPoint){
@@ -67,14 +76,14 @@ void upcxx_astar(int grid_size, std::vector<Obstacle> obstacleList){//, Point st
     std::cout << map.endX << " " << map.endY << std::endl;
  
      upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
-    Node end_node;
-    upcxx::global_ptr<int> count = upcxx::broadcast(upcxx::new_<int>(0),0).wait();  
-int local = 0; 
-    bool init = true; 
+     Node end_node;
+     upcxx::global_ptr<int> count = upcxx::broadcast(upcxx::new_<int>(0),0).wait();  
+     int local = 0; 
+     bool init = true; 
      std::cout << upcxx::rank_me() << " " << "loop"  << std::endl;
      upcxx::barrier(); 
     while((*local_queue).size() > 0||upcxx::rget(count).wait()>0||init){
-	    upcxx::barrier();   
+	upcxx::barrier();   
 	std::cout << upcxx::rank_me() << " " << "in loop" << std::endl;
 	init = false; //enter loop
 	std::cout <<"proc  "<<upcxx::rank_me() << " outer loop   "<<(*local_queue).size()<<std::endl; 
@@ -92,16 +101,19 @@ int local = 0;
         (*local_queue).pop();
 	std::cout <<"proc  "<<upcxx::rank_me() << "  pop   "<<(*local_queue).size()<<std::endl; 
 //	std::cout<< "proc  "<<upcxx::rank_me() << "  popA"<<std::endl; 
-	closed_set;
+	for(Node n:(*closed_set)){
+		std::cout<<"   proc::"<< upcxx::rank_me()<< " Node closed    " <<n.x<<"  " <<n.y; 
+	}
+	std::cout<<"  "<<std::endl; 
 	//std::cout<<"proc  "<<upcxx::rank_me() <<"  len  " <<closed_set.size()<<std::endl; 
 //	std::cout<<" proc "<<upcxx::rank_me() << "pop End"<<std::endl;
        if(upcxx::rpc(0, local_find,closed_set,cur.x, cur.y).wait()){
             continue;
         } 
        upcxx::rpc(0, local_emplace, closed_set,cur.x, cur.y).wait(); 
-        std::cout<< "proc "<<upcxx::rank_me() <<"   emplace"<<std::endl; 
+       std::cout<< "proc "<<upcxx::rank_me() <<"   emplace"<<std::endl; 
        map.close_node(cur.x, cur.y);
- 	// std::cout<< "proc "<<upcxx::rank_me() <<"   close   "<<std::endl; 
+       upcxx::rpc(0, close_node, amap, cur.x, cur.y).wait(); // std::cout<< "proc "<<upcxx::rank_me() <<"   close   "<<std::endl; 
        if(cur ==Node(map.endX, map.endY)){
             upcxx::rput(true,path_found).wait();
             end_node = cur;
