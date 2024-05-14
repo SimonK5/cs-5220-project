@@ -109,7 +109,7 @@ public:
     std::vector<std::vector<char>> grid;
     int seed = 5;
 
-    AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s), startX(0), startY(0), endX(0), endY(0){
+    AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
             for(int j = 0; j < size; j++){

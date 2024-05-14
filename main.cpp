@@ -9,8 +9,9 @@
 
 int main(int argc, char** argv){
     mpi_astar(argc, argv);
-    // std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
-    // AStarMap map = AStarMap(500, obstacleList, 20, 20, 400, 400);
+    // mpi_astar_metrics(argc, argv, 500, 50);
+    // std::vector<Obstacle> obstacleList = {};
+    // AStarMap map = AStarMap(500, obstacleList, 20, 20, 480, 480);
     // int result = serial_astar(map);
     
     //process input
