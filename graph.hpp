@@ -43,6 +43,7 @@ public:
         int dx = x - other.x;
         int dy = y - other.y;
         return std::abs(dx) + std::abs(dy);
+<<<<<<< HEAD
     }
 
     float get_weight(Node other, unsigned int seed) {
@@ -52,6 +53,8 @@ public:
         std::uniform_real_distribution<float> dist(1, 10);
         float weight = dist(rng);
         return weight;
+=======
+>>>>>>> e79273a (fix compiling)
     }
 };
 
@@ -151,7 +154,6 @@ public:
         initGrid[endX][endY] = 'G';
         grid = initGrid;
     }
-
     bool in_bounds(Node n){
         return n.x >= 0 && n.y >= 0 && n.x < size && n.y < size;
     }
@@ -212,5 +214,47 @@ public:
         return parent.get_weight(child, seed);
     }
 };
+
+// /**
+//  * A* map using pairs instead of objects as nodes.
+// */
+// class AStarMapParallel{
+//     std::pair<int, int> start;
+//     std::pair<int, int> end;
+//     int size;
+//     std::vector<Obstacle> obstacles;
+//     std::vector<std::vector<char>> grid;
+
+//     AStarMap(int s, std::vector<Obstacle> obstacleList)
+//         : size(s), start(startPoint), end(endPoint), obstacles(obsList) {
+//             std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+//         for(int i = 0; i < size; i++){
+//             for(int j = 0; j < size; j++){
+//                 Point p = Point(i, j);
+//                 initGrid[i][j] = '.';
+//                 for(Obstacle o : obstacleList){
+//                     if(o.contains(p)){
+//                         initGrid[i][j] = 'X';
+//                     }
+//                 }
+//             }
+//         }
+//         std::uniform_int_distribution<> distrib(0, s-1);
+//         Point startPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[startPoint.x][startPoint.y] == 'X'){
+//             startPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[startPoint.x][startPoint.y] = 'S';
+//         start = new Node(startPoint);
+
+//         Point endPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[endX][endY] == 'X' || endX == startPoint.x && endY == startPoint.y){
+//             endPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[endX][endY] = 'G';
+//         goal = new Node(endPoint);
+//         grid = initGrid;
+//     }
+// };
 
 #endif
