@@ -14,7 +14,12 @@ public:
     int parentX, parentY; // for MPI sending purposes. Actual node objects will be stored in a separate data structure
     float cost_to_come;
     float heuristic_cost;
-    
+    /*namespace upcxx{*/
+    //template<typename T>
+    struct is_trivially_serializable : ::std::true_type {};
+    //}
+    //struct is_trivially_serializable<::Node> : ::std::true_type {};
+    //UPCXX_SERIALIZED_FIELDS(x);
     Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
     Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(0.0), heuristic_cost(0.0) {}
     Node(const Node& other) : x(other.x), y(other.y), parentX(other.parentX), parentY(other.parentY), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
@@ -53,24 +58,24 @@ public:
         float weight = dist(rng);
         return weight;
     }
-   /*UPCXX_SERIALIZED_FIELDS(x);
-    UPCXX_SERIALIZED_FIELDS(y);
+    
+    /*UPCXX_SERIALIZED_FIELDS(y);
     UPCXX_SERIALIZED_FIELDS(parentX);
     UPCXX_SERIALIZED_FIELDS(parentY);
     UPCXX_SERIALIZED_FIELDS(cost_to_come);
     UPCXX_SERIALIZED_FIELDS(heuristic_cost); 
-    */ 
     
+    */
     struct upcxx_serialization{
         //using Berkeley example for syntax
         template<typename Writer> 
-        static void serialize(Writer& writer, Node const & object){
-            writer.write(x); 
-            writer.write(y); 
-            writer.write(parentX);
-            writer.write(parentY); 
-            writer.write(cost_to_come); 
-            writer.write(heuristic_cost); 
+        static void serialize(Writer& writer, Node const & n){
+            writer.write(n.x); 
+            writer.write(n.y); 
+            writer.write(n.parentX);
+            writer.write(n.parentY); 
+            writer.write(n.cost_to_come); 
+            writer.write(n.heuristic_cost); 
         }
         template<typename Reader, typename Storage> 
         static Node* deserialize(Reader& reader, Storage storage){
@@ -84,7 +89,7 @@ public:
             return n;
              //read in the fields we need to reconstruct node 
         }
-    }
+    }; 
 };
 
 // Necessary for using an unordered_set of Nodes
@@ -128,11 +133,11 @@ public:
     struct upcxx_serialization{
         //using Berkeley example for syntax
         template<typename Writer> 
-        static void serialize(Writer& writer, Obstacle const & object){
-            writer.write(x1); 
-            writer.write(y1); 
-            writer.write(x2);
-            writer.write(y2); 
+        static void serialize(Writer& writer, Obstacle const & obs){
+            writer.write(obs.x1); 
+            writer.write(obs.y1); 
+            writer.write(obs.x2);
+            writer.write(obs.y2); 
         }
         template<typename Reader, typename Storage> 
         static Obstacle* deserialize(Reader& reader, Storage storage){
@@ -143,7 +148,7 @@ public:
             Obstacle *obs = storage.construct(x1,y1, x2,y2); 
             return obs;
         }
-    }
+    }; 
 };
 
 /**
@@ -290,13 +295,13 @@ public:
     struct upcxx_serialization{
         //using Berkeley example for syntax
         template<typename Writer> 
-        static void serialize(Writer& writer, AStarMap const & object){
-            writer.write(startX);
-            writer.write(startY); 
-            writer.write(endX); 
-            writer.write(endY); 
-            writer.write(size);  
-            writer.write(seed);   
+        static void serialize(Writer& writer, AStarMap const & a){
+            writer.write(a.startX);
+            writer.write(a.startY); 
+            writer.write(a.endX); 
+            writer.write(a.endY); 
+            writer.write(a.size);  
+            writer.write(a.seed);   
         }
         template<typename Reader, typename Storage> 
         static AStarMap* deserialize(Reader& reader, Storage storage){
@@ -311,7 +316,7 @@ public:
              return a; 
              //read in the fields we need to reconstruct node 
         }
-    }
+    };
 };
 
 // /**
@@ -355,5 +360,6 @@ public:
 //         grid = initGrid;
 //     }
 // };
+
 
 #endif
