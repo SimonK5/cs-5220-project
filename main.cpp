@@ -10,6 +10,7 @@
 #include <string>
 #include "stdio.h"
 #include <iostream>
+#include "upcxx.hpp"
 
 int main(int argc, char** argv){
     mpi_astar(argc, argv, 500, 20, 20, 400, 400);
