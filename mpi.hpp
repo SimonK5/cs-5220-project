@@ -187,6 +187,9 @@ int rankMod(int a, int b) {
     return (a % b + b) % b;
 }
 
+/**
+ * Send the first control message and start a termination check.
+*/
 void startTerminationCheck(int rank, int num_procs){
     p_clock += 1;
     control_msg msg;
@@ -195,27 +198,20 @@ void startTerminationCheck(int rank, int num_procs){
     msg.invalid = 0;
     msg.start = rank;
     int next_rank = (rank + 1) % num_procs;
-    // std::cout << rank << " sending control message" << std::endl;
 
     MPI_Request request;
     int test = 1;
     MPI_Isend(&msg, 1, MPI_Control_Msg, next_rank, TERMINATION_MESSAGE, MPI_COMM_WORLD, &request);
-    // std::cout << rank << " sent control message" << std::endl;
 }
 
+/**
+ * Check if there is a control message available. If there is, determine whether
+ * it is valid and pass it to the next process. Terminate if the control clock
+ * is -1.
+*/
 void terminationCheck(int rank, int num_procs){
     int next_rank = rankMod(rank + 1, num_procs);
     int prev_rank = rankMod(rank - 1, num_procs);
-
-    // auto cur_time = std::chrono::steady_clock::now();
-    // std::chrono::duration<double> diff = cur_time - start_time;
-    // double seconds = diff.count();
-    // if(seconds > 10){
-    //     if(rank == 0) std::cout << "Timeout" << std::endl;
-    //     terminate = true;
-    //     return;
-    // }
-
 
     MPI_Status status;
     int msg_waiting;
@@ -259,6 +255,7 @@ void terminationCheck(int rank, int num_procs){
 void step(AStarMap &map, int rank, int num_procs){
     bool receivedMessages = receiveMessages(rank, num_procs, map);
 
+    // Check for new messages and place in open set if not duplicates
     int end_proc = map.get_proc(Node(map.endX, map.endY), num_procs);
     if(rank != end_proc){
         int msg_waiting;
@@ -273,42 +270,22 @@ void step(AStarMap &map, int rank, int num_procs){
                 MPI_Irecv(&receivedMinPath, 1, MPI_FLOAT, end_proc, PATH_LENGTH_MESSAGE, MPI_COMM_WORLD, &request);
                 if(receivedMinPath < minLengthPath || minLengthPath == -1){
                     minLengthPath = receivedMinPath;
-                    // std::cout << "min length path set to " << minLengthPath << std::endl;
                 }
             }
         }
     }
 
-
-    // if(open_queue.size() == 0){
-    //     MPI_Barrier(MPI_COMM_WORLD);
-    //     receivedMessages = receiveMessages(rank, num_procs, map);
-    //     // std::cout << rank << " received: " << receivedMessages << std::endl;
-
-    //     bool anyReceivedMessages;
-    //     MPI_Allreduce(&receivedMessages, &anyReceivedMessages, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-    //     // std::cout << rank << " any received: " << anyReceivedMessages << std::endl;
-
-    //     if(!anyReceivedMessages){
-    //         terminate = true;
-    //         return;
-    //     }
-    // }
-
     terminationCheck(rank, num_procs);
 
-    // TODO: If message queue is empty, select highest priority state from open set and expand it
+    // If message queue is empty, select highest priority state from open set and expand it
     if(open_queue.size() > 0 && !receivedMessages){
         Node n = open_queue.top();
-        // printf("n: %d, %d, %f, %f\n", n.x, n.y, n.cost_to_come, n.heuristic_cost);
         open_queue.pop();
         closed_set.emplace(Node(n));
         map.close_node(n.x, n.y);
         node_to_parent[n] = Node(n.parentX, n.parentY);
 
         if(n == Node(map.endX, map.endY)){
-            // printf("found end!\n");
-            // terminate = true;
             if(!terminationCheckStarted){
                 // std::cout << rank << " beginning termination check" << std::endl;
                 terminationCheckStarted = true;
@@ -339,7 +316,6 @@ void step(AStarMap &map, int rank, int num_procs){
                 && n.cost_to_come + map.get_edge_weight(n, neighbor) >= costs_to_come[neighbor]){
                     continue;
             }
-            // map.open_node(neighbor.x, neighbor.y);
             neighbor.cost_to_come = n.cost_to_come + map.get_edge_weight(n, neighbor);
             neighbor.heuristic_cost = neighbor.cost_to_come + neighbor.heuristic(Node(map.endX, map.endY));
             neighbor.parentX = n.x;
@@ -439,8 +415,8 @@ void run_mpi_astar(AStarMap map, int rank, int num_procs){
         for(Node n : path){
             map.add_to_path(n.x, n.y);
         }
-        map.render();
-        std::cout << std::endl;
+        // map.render();
+        // std::cout << std::endl;
     }
 }
 
@@ -484,6 +460,10 @@ void mpi_astar(int argc, char** argv){
     } 
 }
 
+/**
+ * Runs num_iter iterations on random start and end points on a 
+ * map_size x map_size map
+*/
 void mpi_astar_metrics(int argc, char** argv, int map_size, int num_iter){
     int num_procs, rank;
     MPI_Init(&argc, &argv);

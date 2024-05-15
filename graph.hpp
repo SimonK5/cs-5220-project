@@ -77,10 +77,6 @@ struct NodeCompare {
     }
 };
 
-// bool operator<(const Node& a, const Node& b) {
-//     return a.heuristic_cost < b.heuristic_cost;
-// }
-
 /**
  * A rectangular obstacle.
 */
