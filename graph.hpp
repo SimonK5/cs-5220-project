@@ -53,6 +53,38 @@ public:
         float weight = dist(rng);
         return weight;
     }
+   /*UPCXX_SERIALIZED_FIELDS(x);
+    UPCXX_SERIALIZED_FIELDS(y);
+    UPCXX_SERIALIZED_FIELDS(parentX);
+    UPCXX_SERIALIZED_FIELDS(parentY);
+    UPCXX_SERIALIZED_FIELDS(cost_to_come);
+    UPCXX_SERIALIZED_FIELDS(heuristic_cost); 
+    */ 
+    
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, Node const & object){
+            writer.write(x); 
+            writer.write(y); 
+            writer.write(parentX);
+            writer.write(parentY); 
+            writer.write(cost_to_come); 
+            writer.write(heuristic_cost); 
+        }
+        template<typename Reader, typename Storage> 
+        static Node* deserialize(Reader& reader, Storage storage){
+            int x = reader.template read<int>(); 
+            int y = reader.template read<int>();
+            int parentx = reader.template read<int>(); 
+            int parenty = reader.template read<int>();
+            Node *n = storage.construct(x,y, parentx, parenty); 
+            n->cost_to_come = reader.template read<float> (); 
+            n->heuristic_cost = reader.template read <float>(); 
+            return n;
+             //read in the fields we need to reconstruct node 
+        }
+    }
 };
 
 // Necessary for using an unordered_set of Nodes
@@ -88,6 +120,30 @@ public:
     bool contains(int x, int y){
         return x >= x1 && x <= x2 && y >= y1 && y <= y2;
     }
+    /*UPCXX_SERIALIZED_FIELDS(x1);
+    UPCXX_SERIALIZED_FIELDS(y1);
+    UPCXX_SERIALIZED_FIELDS(x2);
+    UPCXX_SERIALIZED_FIELDS(y2); 
+    */
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, Obstacle const & object){
+            writer.write(x1); 
+            writer.write(y1); 
+            writer.write(x2);
+            writer.write(y2); 
+        }
+        template<typename Reader, typename Storage> 
+        static Obstacle* deserialize(Reader& reader, Storage storage){
+            int x1 = reader.template read<int>(); 
+            int y1 = reader.template read<int>();
+            int x2 = reader.template read<int>(); 
+            int y2 = reader.template read<int>();
+            Obstacle *obs = storage.construct(x1,y1, x2,y2); 
+            return obs;
+        }
+    }
 };
 
 /**
@@ -104,7 +160,28 @@ public:
     std::vector<Obstacle> obstacles;
     std::vector<std::vector<char>> grid;
     int seed = 5;
+    AStarMap(){
+    }
+    AStarMap(int s) : size(s){
+        std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+        std::uniform_int_distribution<> distrib(0, s-1);
+        startX = distrib(gen);
+        startY = distrib(gen);
+        while(initGrid[startX][startY] == 'X'){
+            startX = distrib(gen);
+            startY = distrib(gen);
+        }
+        initGrid[startX][startY] = 'S';
 
+        endX = distrib(gen);
+        endY = distrib(gen);
+        while(initGrid[endX][endY] == 'X' || initGrid[endX][endY] == 'S'){
+            endX = distrib(gen);
+            endY = distrib(gen);
+        }
+        initGrid[endX][endY] = 'G';
+        grid = initGrid;
+    }
     AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
@@ -209,6 +286,31 @@ public:
 
     float get_edge_weight(Node parent, Node child){
         return parent.get_weight(child, seed);
+    }
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, AStarMap const & object){
+            writer.write(startX);
+            writer.write(startY); 
+            writer.write(endX); 
+            writer.write(endY); 
+            writer.write(size);  
+            writer.write(seed);   
+        }
+        template<typename Reader, typename Storage> 
+        static AStarMap* deserialize(Reader& reader, Storage storage){
+            int startx = reader.template read<int>(); 
+            int starty = reader.template read<int>(); 
+            int endx = reader.template read<int>(); 
+            int endy = reader.template read<int>(); 
+            int size = reader.template read<int>(); 
+            int seed = reader.template read<int>(); 
+            AStarMap *a = storage.construct(size, std::vector<Obstacle>(), startx, starty, endx, endy); 
+             a->seed = seed; 
+             return a; 
+             //read in the fields we need to reconstruct node 
+        }
     }
 };
 
