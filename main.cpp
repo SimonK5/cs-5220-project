@@ -8,7 +8,7 @@
 #include <iostream>
 
 int main(int argc, char** argv){
-    mpi_astar(argc, argv);
+    mpi_astar(argc, argv, 500, 20, 20, 400, 400);
     // mpi_astar_metrics(argc, argv, 500, 50);
     // std::vector<Obstacle> obstacleList = {};
     // AStarMap map = AStarMap(500, obstacleList, 20, 20, 480, 480);
@@ -19,7 +19,7 @@ int main(int argc, char** argv){
     //H := <grid size> <solution value>
     //C := <point 1 x val> <point 1 y val> <point 2 x val> <point 2 y val>
 
-    // std::string nextline; 
+    // std::string nextline;
     // int index = 0; 
     // int grid_size = -1; 
     // int solution =-1; 

@@ -420,33 +420,15 @@ void run_mpi_astar(AStarMap map, int rank, int num_procs){
     }
 }
 
-void mpi_astar(int argc, char** argv){
+void mpi_astar(int argc, char** argv, int map_size, int startX, int startY, int endX, int endY){
     
     int num_procs, rank;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int map_size = 20;
-
     std::vector<Obstacle> obstacleList = {};
-    // std::cout << "make map" << std::endl;
-    AStarMap map = AStarMap(map_size, obstacleList, 5, 5, 15, 15);
-    int params[4];
-    if(rank == 0){
-        // map.render();
-        // map.print_assignments(num_procs);
-        params[0] = map.startX;
-        params[1] = map.startY;
-        params[2] = map.endX;
-        params[3] = map.endY;
-    }
-
-    // std::cout << "get/set params" << std::endl;
-    MPI_Bcast(params, 4, MPI_INT, 0, MPI_COMM_WORLD);
-    if(rank != 0){
-        map = AStarMap(map_size, obstacleList, params[0], params[1], params[2], params[3]);
-    }
+    AStarMap map = AStarMap(map_size, obstacleList, startX, startY, endX, endY);
 
     auto start_time = std::chrono::steady_clock::now();
     // if(rank == 0) std::cout << "init" << std::endl;
@@ -456,7 +438,7 @@ void mpi_astar(int argc, char** argv){
     double seconds = diff.count();
     if(rank == 0){
         // std::cout << "Path is of length " << path.size() << std::endl;
-        // std::cout << "Time taken (s): " << seconds << std::endl;
+        std::cout << "Time taken (s): " << seconds << std::endl;
     } 
 }
 
