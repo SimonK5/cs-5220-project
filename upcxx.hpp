@@ -7,23 +7,47 @@
 #include "stdio.h"
 #include <upcxx/upcxx.hpp>
 
+const int options = -1; 
+const int optimal = 16; 
 using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 using dist_set = upcxx::dist_object<std::unordered_set<Node, NodeHash, NodeEqual>>;  
 using dist_map = upcxx::dist_object<std::unordered_map<Node, Node, NodeHash, NodeEqual>>;
 using dist_amap = upcxx::dist_object<AStarMap>; 
 
 int get_proc(Node n){
-	/*NodeHash nh; 
-	return nh(n)%upcxx::rank_n();*/
-	return 0; //do this to start
+	if(options>=0){
+	NodeHash nh; 
+	return nh(n)%upcxx::rank_n();
+	}
+	return 0; //do this to debug
 }
 int local_insert(dist_queue &lqueue, int x, int y, int num_passes, int size){
+	if(options==1){
+		if(lqueue->size()<size||lqueue->size()<optimal||num_passes>=upcxx::rank_n()) {
+			lqueue->push(Node(x,y)); 
+			return num_passes;
+		}
+		else{
+			 return upcxx::rpc(upcxx::rank_me()+1, local_insert, lqueue,x,y,num_passes+1,size).wait();
+		}
+	}else{
      (*lqueue).push(Node(x,y)); 
      return num_passes; 
+	}
 }
 int local_open(dist_queue &lqueue, Node n, int num_passes, int size){
+	if(options==1){
+		if(lqueue->size()<size||lqueue->size()<optimal||num_passes>=upcxx::rank_n()) {
+			lqueue->push(n); 
+			return num_passes;
+		}
+		else{
+			 return upcxx::rpc(upcxx::rank_me()+1, local_open, lqueue,n,num_passes+1,size).wait();
+		}
+	}else{
      (*lqueue).push(n); 
      return num_passes; 
+	}
 }
 int local_insert1(dist_queue &lqueue, Node n, int num_passes, int size){
      (*lqueue).push(n); 
@@ -156,7 +180,7 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
             new_parent.cost_to_come = cur.cost_to_come;
             new_parent.heuristic_cost = cur.heuristic_cost; 
             upcxx::rpc(get_proc(n), local_put,node_to_parent,n, new_parent).wait();
-            upcxx::rpc(get_proc(n), local_open, queue,n,0,10).wait(); 
+            upcxx::rpc(upcxx::rank_me(), local_open, queue,n,0,local_queue.size()).wait(); 
             map.open_node(n.x, n.y);
 						upcxx::rpc(0, open_node, amap,cur.x, cur.y).wait();
         }
