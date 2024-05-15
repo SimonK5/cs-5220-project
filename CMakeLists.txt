@@ -16,7 +16,7 @@ if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 endif ()
 
 # add_executable(serial main.cpp graph.hpp graph.cpp common.h serial.hpp)
-add_executable(mpi main.cpp graph.hpp graph.cpp common.h mpi.hpp)
+add_executable(mpi main.cpp graph.hpp common.h mpi.hpp)
 target_link_libraries(mpi PRIVATE MPI::MPI_CXX)
 
 # target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)

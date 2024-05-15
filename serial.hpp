@@ -7,9 +7,11 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <iostream>
+#include <chrono>
 #include "stdio.h"
 
-int serial_astar(AStarMap &map){    
+int serial_astar(AStarMap &map){
+    auto start_time = std::chrono::steady_clock::now();    
     std::priority_queue<Node, std::vector<Node>, NodeCompare> open_queue;
     std::unordered_set<Node, NodeHash, NodeEqual> closed_set;
     std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
@@ -41,7 +43,7 @@ int serial_astar(AStarMap &map){
             if(closed_set.find(n) != closed_set.end() || !map.is_valid_node(n)){
                 continue;
             }
-            n.cost_to_come = cur.cost_to_come + 1;
+            n.cost_to_come = cur.cost_to_come + map.get_edge_weight(cur, n);
             n.heuristic_cost = n.cost_to_come + n.heuristic(Node(map.endX, map.endY));
             Node new_parent = Node(cur.x, cur.y);
             new_parent.cost_to_come = cur.cost_to_come;
@@ -50,6 +52,8 @@ int serial_astar(AStarMap &map){
             open_queue.push(n);
             map.open_node(n.x, n.y);
         }
+
+        // map.render();
     }
 
     if(path_found){
@@ -62,7 +66,12 @@ int serial_astar(AStarMap &map){
         }
     }
 
-    map.render();
+    auto end_time = std::chrono::steady_clock::now();
+    std::chrono::duration<double> diff = end_time - start_time;
+    double seconds = diff.count();
+    std::cout << "Time taken (s): " << seconds << std::endl;
+
+    // map.render();
     return end_node->cost_to_come;
 }
 

@@ -1,0 +1,17 @@
+cd ~/cs-5220-project/build
+make
+
+echo "1"
+srun -N 1 --ntasks-per-node=1 ./mpi
+echo "2"
+srun -N 1 --ntasks-per-node=2 ./mpi
+echo "4"
+srun -N 1 --ntasks-per-node=4 ./mpi
+echo "8"
+srun -N 1 --ntasks-per-node=8 ./mpi
+echo "16"
+srun -N 1 --ntasks-per-node=16 ./mpi
+echo "32"
+srun -N 1 --ntasks-per-node=32 ./mpi
+echo "64"
+srun -N 1 --ntasks-per-node=64 ./mpi
