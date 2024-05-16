@@ -13,7 +13,7 @@ int main(int argc, char** argv){
 
     auto start_time = std::chrono::steady_clock::now();
     upcxx::init(); 
-    upcxx_astar(100, std::vector<Obstacle>()); 
+    upcxx_astar(100, std::vector<Obstacle>(),5,5,95,95); 
     upcxx::finalize();
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end_time - start_time;

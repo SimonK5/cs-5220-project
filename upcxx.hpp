@@ -156,7 +156,7 @@ AStarMap copy_map(upcxx::global_ptr<AStarMap> amap){
 	return *(amap.local()); 
 }
 
-int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
+int upcxx_astar(int size, std::vector<Obstacle> obstacleList,int startX, int startY, int endX, int endY){
    
     dist_queue local_queue({}); 
     dist_set closed_set = std::unordered_set<Node, NodeHash, NodeEqual>();
@@ -165,7 +165,7 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
     upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
     upcxx::global_ptr<int> count = upcxx::broadcast(upcxx::new_<int>(0),0).wait();  
 		upcxx::global_ptr<int> path_len = upcxx::broadcast(upcxx::new_<int>(-1),0).wait();  
-    upcxx::global_ptr<AStarMap> amap = upcxx::broadcast(upcxx::new_ <AStarMap>(AStarMap(size, obstacleList)), 0).wait(); 
+    upcxx::global_ptr<AStarMap> amap = upcxx::broadcast(upcxx::new_ <AStarMap>(AStarMap(size, obstacleList, startX, startY,endX, endY)), 0).wait(); 
     AStarMap map = upcxx::rpc(0, copy_map, amap).wait();
     //reinstantiate grid
 		map = AStarMap(size, obstacleList, map.startX, map.startY, map.endX, map.endY);
