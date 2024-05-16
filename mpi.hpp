@@ -486,4 +486,45 @@ void mpi_astar_metrics(int argc, char** argv, int map_size, int num_iter){
         
 }
 
+void mpi_astar(int argc, char** argv){
+    
+    int num_procs, rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
+    AStarMap map = AStarMap(10, obstacleList);
+    int params[4];
+    if(rank == 0){
+        // map.render()
+        // map.print_assignments(num_procs);
+        params[0] = map.startX;
+        params[1] = map.startY;
+        params[2] = map.endX;
+        params[3] = map.endY;
+    }
+
+    MPI_Bcast(params, 4, MPI_INT, 0, MPI_COMM_WORLD);
+    if(rank != 0){
+        map = AStarMap(10, obstacleList, params[0], params[1], params[2], params[3]);
+    }
+
+    init(map, rank, num_procs);
+    std::cout << "done initializing" << std::endl;
+    
+    int nsteps = 4;
+    for(int s = 0; s < nsteps; ++s){
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("\n%d step %d\n", rank, s);
+        step(map, rank, num_procs);
+    }
+
+    // if(rank == 0){
+    //     delete map.start;
+    //     delete map.goal;
+    // }
+}
+
 #endif

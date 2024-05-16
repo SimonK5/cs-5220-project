@@ -14,11 +14,16 @@ public:
     int parentX, parentY; // for MPI sending purposes. Actual node objects will be stored in a separate data structure
     float cost_to_come;
     float heuristic_cost;
-    
-    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(0.0), heuristic_cost(0.0) {}
+    /*namespace upcxx{*/
+    //template<typename T>
+    struct is_trivially_serializable : ::std::true_type {};
+    //}
+    //struct is_trivially_serializable<::Node> : ::std::true_type {};
+    //UPCXX_SERIALIZED_FIELDS(x);
+    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(-1.0), heuristic_cost(0.0) {}
+    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(-1.0), heuristic_cost(0.0) {}
     Node(const Node& other) : x(other.x), y(other.y), parentX(other.parentX), parentY(other.parentY), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
-    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(-1.0), heuristic_cost(0.0) {}
 
     std::vector<std::vector<int>> get_neighbor_directions(){
         std::vector<std::vector<int>> dirn = {{1, 0}, {0, 1}, {0, -1}, {-1, 0}};
@@ -53,6 +58,38 @@ public:
         float weight = dist(rng);
         return weight;
     }
+    
+    /*UPCXX_SERIALIZED_FIELDS(y);
+    UPCXX_SERIALIZED_FIELDS(parentX);
+    UPCXX_SERIALIZED_FIELDS(parentY);
+    UPCXX_SERIALIZED_FIELDS(cost_to_come);
+    UPCXX_SERIALIZED_FIELDS(heuristic_cost); 
+    
+    */
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, Node const & n){
+            writer.write(n.x); 
+            writer.write(n.y); 
+            writer.write(n.parentX);
+            writer.write(n.parentY); 
+            writer.write(n.cost_to_come); 
+            writer.write(n.heuristic_cost); 
+        }
+        template<typename Reader, typename Storage> 
+        static Node* deserialize(Reader& reader, Storage storage){
+            int x = reader.template read<int>(); 
+            int y = reader.template read<int>();
+            int parentx = reader.template read<int>(); 
+            int parenty = reader.template read<int>();
+            Node *n = storage.construct(x,y, parentx, parenty); 
+            n->cost_to_come = reader.template read<float> (); 
+            n->heuristic_cost = reader.template read <float>(); 
+            return n;
+             //read in the fields we need to reconstruct node 
+        }
+    }; 
 };
 
 // Necessary for using an unordered_set of Nodes
@@ -88,6 +125,30 @@ public:
     bool contains(int x, int y){
         return x >= x1 && x <= x2 && y >= y1 && y <= y2;
     }
+    /*UPCXX_SERIALIZED_FIELDS(x1);
+    UPCXX_SERIALIZED_FIELDS(y1);
+    UPCXX_SERIALIZED_FIELDS(x2);
+    UPCXX_SERIALIZED_FIELDS(y2); 
+    */
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, Obstacle const & obs){
+            writer.write(obs.x1); 
+            writer.write(obs.y1); 
+            writer.write(obs.x2);
+            writer.write(obs.y2); 
+        }
+        template<typename Reader, typename Storage> 
+        static Obstacle* deserialize(Reader& reader, Storage storage){
+            int x1 = reader.template read<int>(); 
+            int y1 = reader.template read<int>();
+            int x2 = reader.template read<int>(); 
+            int y2 = reader.template read<int>();
+            Obstacle *obs = storage.construct(x1,y1, x2,y2); 
+            return obs;
+        }
+    }; 
 };
 
 /**
@@ -104,7 +165,28 @@ public:
     std::vector<Obstacle> obstacles;
     std::vector<std::vector<char>> grid;
     int seed = 5;
+    AStarMap(){
+    }
+    AStarMap(int s) : size(s){
+        std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+        std::uniform_int_distribution<> distrib(0, s-1);
+        startX = distrib(gen);
+        startY = distrib(gen);
+        while(initGrid[startX][startY] == 'X'){
+            startX = distrib(gen);
+            startY = distrib(gen);
+        }
+        initGrid[startX][startY] = 'S';
 
+        endX = distrib(gen);
+        endY = distrib(gen);
+        while(initGrid[endX][endY] == 'X' || initGrid[endX][endY] == 'S'){
+            endX = distrib(gen);
+            endY = distrib(gen);
+        }
+        initGrid[endX][endY] = 'G';
+        grid = initGrid;
+    }
     AStarMap(int s, std::vector<Obstacle> obstacleList) : size(s){
         std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
         for(int i = 0; i < size; i++){
@@ -151,7 +233,6 @@ public:
         initGrid[endX][endY] = 'G';
         grid = initGrid;
     }
-
     bool in_bounds(Node n){
         return n.x >= 0 && n.y >= 0 && n.x < size && n.y < size;
     }
@@ -211,6 +292,74 @@ public:
     float get_edge_weight(Node parent, Node child){
         return parent.get_weight(child, seed);
     }
+    struct upcxx_serialization{
+        //using Berkeley example for syntax
+        template<typename Writer> 
+        static void serialize(Writer& writer, AStarMap const & a){
+            writer.write(a.startX);
+            writer.write(a.startY); 
+            writer.write(a.endX); 
+            writer.write(a.endY); 
+            writer.write(a.size);  
+            writer.write(a.seed);   
+        }
+        template<typename Reader, typename Storage> 
+        static AStarMap* deserialize(Reader& reader, Storage storage){
+            int startx = reader.template read<int>(); 
+            int starty = reader.template read<int>(); 
+            int endx = reader.template read<int>(); 
+            int endy = reader.template read<int>(); 
+            int size = reader.template read<int>(); 
+            int seed = reader.template read<int>(); 
+            AStarMap *a = storage.construct(size, std::vector<Obstacle>(), startx, starty, endx, endy); 
+             a->seed = seed; 
+             return a; 
+             //read in the fields we need to reconstruct node 
+        }
+    };
 };
+
+// /**
+//  * A* map using pairs instead of objects as nodes.
+// */
+// class AStarMapParallel{
+//     std::pair<int, int> start;
+//     std::pair<int, int> end;
+//     int size;
+//     std::vector<Obstacle> obstacles;
+//     std::vector<std::vector<char>> grid;
+
+//     AStarMap(int s, std::vector<Obstacle> obstacleList)
+//         : size(s), start(startPoint), end(endPoint), obstacles(obsList) {
+//             std::vector<std::vector<char>> initGrid(size, std::vector<char>(size));
+//         for(int i = 0; i < size; i++){
+//             for(int j = 0; j < size; j++){
+//                 Point p = Point(i, j);
+//                 initGrid[i][j] = '.';
+//                 for(Obstacle o : obstacleList){
+//                     if(o.contains(p)){
+//                         initGrid[i][j] = 'X';
+//                     }
+//                 }
+//             }
+//         }
+//         std::uniform_int_distribution<> distrib(0, s-1);
+//         Point startPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[startPoint.x][startPoint.y] == 'X'){
+//             startPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[startPoint.x][startPoint.y] = 'S';
+//         start = new Node(startPoint);
+
+//         Point endPoint = Point(distrib(gen), distrib(gen));
+//         while(initGrid[endX][endY] == 'X' || endX == startPoint.x && endY == startPoint.y){
+//             endPoint = Point(distrib(gen), distrib(gen));
+//         }
+//         initGrid[endX][endY] = 'G';
+//         goal = new Node(endPoint);
+//         grid = initGrid;
+//     }
+// };
+
 
 #endif
