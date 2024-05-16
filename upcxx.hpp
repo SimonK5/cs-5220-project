@@ -1,5 +1,6 @@
 
 #include "graph.hpp"
+#include "serial.hpp"
 #include <vector>
 #include <queue>
 #include <unordered_set>
@@ -9,6 +10,7 @@
 
 const int options = 1; 
 const int optimal =40; 
+const bool testing = true; 
 using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 using dist_set = upcxx::dist_object<std::unordered_set<Node, NodeHash, NodeEqual>>;  
 using dist_map = upcxx::dist_object<std::unordered_map<Node, Node, NodeHash, NodeEqual>>; 
@@ -156,7 +158,6 @@ AStarMap copy_map(upcxx::global_ptr<AStarMap> amap){
 
 int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
    
-    auto start_time = std::chrono::steady_clock::now();
     dist_queue local_queue({}); 
     dist_set closed_set = std::unordered_set<Node, NodeHash, NodeEqual>();
     dist_set ongoing_set = std::unordered_set<Node, NodeHash, NodeEqual>();
@@ -168,7 +169,9 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
     AStarMap map = upcxx::rpc(0, copy_map, amap).wait();
     //reinstantiate grid
 		map = AStarMap(size, obstacleList, map.startX, map.startY, map.endX, map.endY);
-
+		int solution = -1; 
+		if(testing&&upcxx::rank_me()==0)solution = serial_astar(map); 
+	  map = AStarMap(size, obstacleList, map.startX, map.startY, map.endX, map.endY);
     if(upcxx::rank_me()==0) 
 		local_queue->push(Node(map.startX, map.startY)); 
     upcxx::global_ptr<Node> end_node = upcxx::broadcast(upcxx::new_ <Node>(), 0).wait(); 
@@ -207,6 +210,7 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
         for(std::vector<int> d : dirn){ 
             Node n = Node(cur.x + d[0], cur.y + d[1]);
 						int cost = upcxx::rpc(get_proc(n), local_cost,closed_set,n).wait();
+						upcxx::rpc(get_proc(n), newer_cost,ongoing_set,n).wait();
             if((upcxx::rpc(get_proc(n), local_find,closed_set,n).wait()||!map.is_valid_node(n)))continue; 
 						if(!(!cost>=0 || !(cur.cost_to_come + map.get_edge_weight(cur, n) >= cost))){continue;}
                    
@@ -224,7 +228,8 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
 							} 
 						}
 						upcxx::rpc((get_proc(n))%upcxx::rank_n(), local_open_f, local_queue,n).wait(); 
-            map.open_node(n.x, n.y);
+
+						map.open_node(n.x, n.y);
 						moved=100;  
 						upcxx::rpc(0, open_node, amap,n.x, n.y).wait();
 					
@@ -261,11 +266,12 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
         }
     }
 		upcxx::barrier(); 
-    auto end_time = std::chrono::steady_clock::now();
+    /*auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end_time - start_time;
-    double seconds = diff.count();
+    double seconds = diff.count();*/
     //std::cout << upcxx::rank_me()<<" Time taken (s): " << seconds << std::endl;
 		if(upcxx::rank_me()==0)std::cout<<"cost  "<<end_node.local()->cost_to_come<<std::endl; 
     if(upcxx::rank_me()==0)amap.local()->render();
+		if(testing&&upcxx::rank_me()==0&&(int)end_node.local()->cost_to_come!=solution)std::cout<<"FAILURE "<<solution<<","<<end_node.local()->cost_to_come<<std::endl; 
     return end_node.local()->cost_to_come;
 }
