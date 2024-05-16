@@ -7,7 +7,7 @@
 #include "stdio.h"
 #include <upcxx/upcxx.hpp>
 
-const int options = -1; 
+const int options = 0; 
 const int optimal = 16; 
 using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 using dist_set = upcxx::dist_object<std::unordered_set<Node, NodeHash, NodeEqual>>;  
@@ -129,8 +129,8 @@ AStarMap copy_map(upcxx::global_ptr<AStarMap> amap){
 int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
    
     auto start_time = std::chrono::steady_clock::now();
-    dist_queue queue = std::priority_queue<Node, std::vector<Node>, NodeCompare>();
-    std::priority_queue<Node, std::vector<Node>, NodeCompare> local_queue = (*queue); 
+    dist_queue local_queue({});//std::priority_queue<Node, std::vector<Node>, NodeCompare>());
+   // std::priority_queue<Node, std::vector<Node>, NodeCompare> local_queue = (*queue); 
     dist_set closed_set = std::unordered_set<Node, NodeHash, NodeEqual>();
     dist_map node_to_parent = std::unordered_map<Node, Node, NodeHash, NodeEqual>();  
     upcxx::global_ptr<bool>path_found = upcxx::broadcast(upcxx::new_<bool>(false),0).wait();
@@ -140,21 +140,25 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
     //reinstantiate grid
 		map = AStarMap(size, obstacleList, map.startX, map.startY, map.endX, map.endY);
 
-    if(upcxx::rank_me()==0)local_queue.push(Node(map.startX, map.startY));
+    if(upcxx::rank_me()==0)
+		local_queue->push(Node(map.startX, map.startY));
     std::cout << map.startX << " " << map.startY << std::endl;
     std::cout << map.endX << " " << map.endY << std::endl;
     //Node* e_node;
     upcxx::global_ptr<Node> end_node = upcxx::broadcast(upcxx::new_ <Node>(), 0).wait(); 
 		bool init = true; 	
-		while(upcxx::rget(count).wait()>0||init ){
+		while(upcxx::rget(count).wait()>0||init){
+		int moved = 0; 
 		init = false; 
-		upcxx::barrier(); 
-		std::cout<<"proc  "<<upcxx::rank_me<<"  waiting "<<std::endl; 
-		upcxx::barrier(); 
-		while(local_queue.size() > 0){ 
-        Node cur = local_queue.top();
+		//upcxx::barrier(); 
+		std::cout<<"proc  "<<upcxx::rank_me()<<"  waiting "<<std::endl; 
+		//upcxx::barrier(); 
+		while(local_queue->size() > 0){
+			//  moved =100;
+				std::cout<<"local_queue"<<local_queue->size()<<std::endl;  
+        Node cur = local_queue->top();
 
-        local_queue.pop();
+        local_queue->pop();
         if(upcxx::rpc(get_proc(cur), local_find,closed_set,cur).wait()){ 
             continue;
         }
@@ -170,8 +174,9 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
 
         std::vector<std::vector<int>> dirn = cur.get_neighbor_directions();
         for(std::vector<int> d : dirn){
+					  std::cout<<"local_new "<<local_queue->size()<<std::endl; 
             Node n = Node(cur.x + d[0], cur.y + d[1]);
-            if(upcxx::rpc(get_proc(n), local_find,closed_set,cur).wait()||!map.is_valid_node(n)){ 
+            if(upcxx::rpc(get_proc(n), local_find,closed_set,n).wait()||!map.is_valid_node(n)){ 
                 continue;
             }
             n.cost_to_come = cur.cost_to_come + map.get_edge_weight(cur, n);
@@ -180,25 +185,36 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
             new_parent.cost_to_come = cur.cost_to_come;
             new_parent.heuristic_cost = cur.heuristic_cost; 
             upcxx::rpc(get_proc(n), local_put,node_to_parent,n, new_parent).wait();
-            upcxx::rpc(upcxx::rank_me(), local_open, queue,n,0,local_queue.size()).wait(); 
+            upcxx::rpc(upcxx::rank_me(), local_open, local_queue,n,0,local_queue->size()).wait(); 
             map.open_node(n.x, n.y);
+						moved=100; 
+						std::cout<<"local_end "<<local_queue->size()<<std::endl; 
 						upcxx::rpc(0, open_node, amap,cur.x, cur.y).wait();
         }
 				std::cout<<"proc "<<upcxx::rank_me()<<std::endl; 
-        map.render();
+        
     }
 		//this might be 1) time-consuming and 2)messy
 				upcxx::barrier(); 
-				rput(0, count).wait();
+				if(upcxx::rank_me()==0)upcxx::rput(0, count).wait();
+				std::cout<<"proc  "<<upcxx::rank_me()<<" changed "<<moved <<std::endl; 
 				//count = upcxx::broadcast(upcxx::new_<int>(0),0).wait();
+				upcxx::barrier_async().wait(); 
 				upcxx::barrier(); 
-				if(local_queue.size()>0)rput(upcxx::rank_me()+1, count).wait(); 
-				std::cout<<"proc  "<<upcxx::rank_me<<"  waiting end "<<std::endl; 
+				if(moved>0){
+					upcxx::rput(upcxx::rank_me()+1, count).wait();
+					std::cout<<"proc  "<<upcxx::rank_me()<<" count "<<upcxx::rget(count).wait() <<std::endl;  
+				}
+				std::cout<<"proc  "<<upcxx::rank_me()<<"  waiting end " <<std::endl; 
+				std::cout<<"proc  "<<upcxx::rank_me()<<" count "<<upcxx::rget(count).wait() <<std::endl; 
 				upcxx::barrier(); 
-				if(upcxx::rget(count).wait()<1)break; 
+				upcxx::barrier_async().wait(); 
+				if(upcxx::rank_me()==0)map.render();
+				//if(upcxx::rget(count).wait()<1)break; 
 		}
-
+		upcxx::barrier(); 
     if(upcxx::rank_me()==0&&path_found){
+			  std::cout<<" 0 "<<std::endl; 
         Node cur(end_node.local()->x, end_node.local()->y);
         while(upcxx::rpc(get_proc(cur), local_find2,node_to_parent,cur).wait()){
         //while (node_to_parent.find(cur) != node_to_parent.end()) {
@@ -207,11 +223,11 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList){
             cur = parent;
         }
     }
-
+		upcxx::barrier(); 
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end_time - start_time;
     double seconds = diff.count();
-    std::cout << "Time taken (s): " << seconds << std::endl;
+    std::cout << upcxx::rank_me()<<" Time taken (s): " << seconds << std::endl;
 		if(upcxx::rank_me()==0)std::cout<<"cost  "<<end_node.local()->cost_to_come<<std::endl; 
     if(upcxx::rank_me()==0)map.render();
     return end_node.local()->cost_to_come;

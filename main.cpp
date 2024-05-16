@@ -14,7 +14,7 @@ int main(int argc, char** argv){
     // mpi_astar_metrics(argc, argv, 500, 50);
     //std::vector<Obstacle> obstacleList = {};
     upcxx::init(); 
-    upcxx_astar(10, std::vector<Obstacle>()); 
+    upcxx_astar(64, std::vector<Obstacle>()); 
     upcxx::finalize(); // AStarMap map = AStarMap(500, obstacleList, 20, 20, 480, 480);
     // int result = serial_astar(map);
     
