@@ -19,4 +19,4 @@ upcxx::init();
 upcxx_astar(MAP_SIZE, std::vector<Obstacle>(),STARTX,STARTY,ENDX,ENDY);
 upcxx::finalize();
 ```
-6. TODO: command to call UPC++
+6. `srun -N 1 --ntasks-per-node=[NUM_TASKS_PER_NODE] ./upcxx`
