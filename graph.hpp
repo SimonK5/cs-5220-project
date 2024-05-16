@@ -20,10 +20,10 @@ public:
     //}
     //struct is_trivially_serializable<::Node> : ::std::true_type {};
     //UPCXX_SERIALIZED_FIELDS(x);
-    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
-    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node(int xPos, int yPos) : x(xPos), y(yPos), parentX(0), parentY(0), cost_to_come(-1.0), heuristic_cost(0.0) {}
+    Node(int xPos, int yPos, int xParent, int yParent) : x(xPos), y(yPos), parentX(xParent), parentY(yParent), cost_to_come(-1.0), heuristic_cost(0.0) {}
     Node(const Node& other) : x(other.x), y(other.y), parentX(other.parentX), parentY(other.parentY), cost_to_come(other.cost_to_come), heuristic_cost(other.heuristic_cost) {}
-    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(0.0), heuristic_cost(0.0) {}
+    Node() : x(0), y(0), parentX(0), parentY(0), cost_to_come(-1.0), heuristic_cost(0.0) {}
 
     std::vector<std::vector<int>> get_neighbor_directions(){
         std::vector<std::vector<int>> dirn = {{1, 0}, {0, 1}, {0, -1}, {-1, 0}};
