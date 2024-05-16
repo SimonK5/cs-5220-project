@@ -6,8 +6,11 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
+<<<<<<< HEAD
 #include <limits>
 #include <chrono>
+=======
+>>>>>>> e79273a (fix compiling)
 #include "graph.hpp"
 
 std::priority_queue<Node, std::vector<Node>, NodeCompare> open_queue;
@@ -17,6 +20,7 @@ std::unordered_map<Node, Node, NodeHash, NodeEqual> node_to_parent;
 std::unordered_map<Node, int, NodeHash, NodeEqual> costs_to_come;
 std::unordered_map<int, std::vector<Node>> to_send;
 MPI_Datatype MPI_Vertex;
+<<<<<<< HEAD
 
 MPI_Datatype MPI_Control_Msg;
 
@@ -26,6 +30,8 @@ struct control_msg{
     int invalid;
     int start;
 };
+=======
+>>>>>>> e79273a (fix compiling)
 
 int my_rank;
 int total_num_procs;
@@ -51,6 +57,7 @@ int tmax = 0;
 
 
 void init(AStarMap map, int rank, int num_procs){
+<<<<<<< HEAD
     // Ok, maybe having global state was a bad idea, but I don't feel like fixing it
     open_queue = std::priority_queue<Node, std::vector<Node>, NodeCompare>();
     closed_set = std::unordered_set<Node, NodeHash, NodeEqual>();
@@ -66,6 +73,8 @@ void init(AStarMap map, int rank, int num_procs){
     p_clock = 0;
     tmax = 0;
 
+=======
+>>>>>>> e79273a (fix compiling)
     int blocklengths[6] = {1, 1, 1, 1, 1, 1};
     MPI_Datatype types[6] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT,
                              MPI_FLOAT,   MPI_FLOAT};
@@ -484,6 +493,47 @@ void mpi_astar_metrics(int argc, char** argv, int map_size, int num_iter){
         std::cout << "Avg time taken (s): " << seconds/(double)num_iter << std::endl;
     } 
         
+}
+
+void mpi_astar(int argc, char** argv){
+    
+    int num_procs, rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    std::vector<Obstacle> obstacleList = {Obstacle(0, 0, 3, 5)};
+    AStarMap map = AStarMap(10, obstacleList);
+    int params[4];
+    if(rank == 0){
+        // map.render()
+        // map.print_assignments(num_procs);
+        params[0] = map.startX;
+        params[1] = map.startY;
+        params[2] = map.endX;
+        params[3] = map.endY;
+    }
+
+    MPI_Bcast(params, 4, MPI_INT, 0, MPI_COMM_WORLD);
+    if(rank != 0){
+        map = AStarMap(10, obstacleList, params[0], params[1], params[2], params[3]);
+    }
+
+    init(map, rank, num_procs);
+    std::cout << "done initializing" << std::endl;
+    
+    int nsteps = 4;
+    for(int s = 0; s < nsteps; ++s){
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("\n%d step %d\n", rank, s);
+        step(map, rank, num_procs);
+    }
+
+    // if(rank == 0){
+    //     delete map.start;
+    //     delete map.goal;
+    // }
 }
 
 #endif
