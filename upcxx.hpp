@@ -10,7 +10,7 @@
 
 const int options = 1; 
 const int optimal =40; 
-const bool testing = true; 
+const bool testing =false; 
 using dist_queue = upcxx::dist_object<std::priority_queue<Node, std::vector<Node>, NodeCompare>>;  
 using dist_set = upcxx::dist_object<std::unordered_set<Node, NodeHash, NodeEqual>>;  
 using dist_map = upcxx::dist_object<std::unordered_map<Node, Node, NodeHash, NodeEqual>>; 
@@ -271,7 +271,7 @@ int upcxx_astar(int size, std::vector<Obstacle> obstacleList,int startX, int sta
     double seconds = diff.count();*/
     //std::cout << upcxx::rank_me()<<" Time taken (s): " << seconds << std::endl;
 		if(upcxx::rank_me()==0)std::cout<<"cost  "<<end_node.local()->cost_to_come<<std::endl; 
-    if(upcxx::rank_me()==0)amap.local()->render();
+    if(upcxx::rank_me()==0&&testing)amap.local()->render();
 		if(testing&&upcxx::rank_me()==0&&(int)end_node.local()->cost_to_come!=solution)std::cout<<"FAILURE "<<solution<<","<<end_node.local()->cost_to_come<<std::endl; 
     return end_node.local()->cost_to_come;
 }
