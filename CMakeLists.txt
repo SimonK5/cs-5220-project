@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 find_package(MPI REQUIRED)
-# find_package(UPCXX REQUIRED)
+find_package(UPCXX REQUIRED)
 
 # We require the GNU compiler for this assignment.
 
@@ -19,14 +19,13 @@ find_package(MPI REQUIRED)
 
 # Uncomment for MPI
 add_executable(mpi main.cpp graph.hpp common.h mpi.hpp)
+target_link_libraries(mpi PRIVATE MPI::MPI_CXX)
 
 # Uncomment for UPC++
 # add_executable(upcxx main.cpp graph.hpp common.h upcxx.hpp)
+# target_link_libraries(upcxx PRIVATE UPCXX::upcxx)
 
 #add_executable(serial main.cpp graph.hpp graph.cpp common.h serial.hpp)
-
-target_link_libraries(mpi PRIVATE MPI::MPI_CXX)
-# target_link_libraries(upcxx PRIVATE UPCXX::upcxx)
 
 # Copy the job scripts
 # configure_file(job-serial job-serial COPYONLY)
